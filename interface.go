@@ -37,7 +37,7 @@ func (r1 Record) Equals(r2 Record) bool {
 }
 
 type Iterator interface {
-	Header() *TableHeader
+	TableHeader() *TableHeader
 	Next() (Record, error)
 	Close() error
 }

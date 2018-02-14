@@ -61,4 +61,9 @@ func (s *StreamSuite) TestTable(c *C) {
 	}
 	_, err = ReadRecord(r, tableHeader)
 	c.Assert(err, Equals, io.EOF)
+
+	// Using a scan should produce the same result.
+	scan, err := NewScan(path)
+	c.Assert(err, IsNil)
+	zdb2.CheckIterator(c, scan, expectedRecords)
 }
