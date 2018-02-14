@@ -1,13 +1,8 @@
 package stream
 
 import (
-	"bufio"
-	"io"
-	"os"
-
 	. "gopkg.in/check.v1"
 
-	. "github.com/dropbox/godropbox/gocheck2"
 	"github.com/robot-dreams/zdb2"
 )
 
@@ -15,7 +10,7 @@ type StreamSuite struct{}
 
 var _ = Suite(&StreamSuite{})
 
-func (s *StreamSuite) TestTable(c *C) {
+func (s *StreamSuite) TestStream(c *C) {
 	expectedTableHeader := &zdb2.TableHeader{
 		Name: "movies",
 		Fields: []*zdb2.Field{
@@ -33,35 +28,16 @@ func (s *StreamSuite) TestTable(c *C) {
 
 	// Persist the Table to a file.
 	path := c.MkDir() + "/movies.zt"
-	f, err := os.Create(path)
-	c.Assert(err, IsNil)
-	w := bufio.NewWriter(f)
-	err = WriteTableHeader(w, expectedTableHeader)
+	recordWriter, err := NewWrite(path, expectedTableHeader)
 	c.Assert(err, IsNil)
 	for _, record := range expectedRecords {
-		err = WriteRecord(w, expectedTableHeader, record)
+		err = recordWriter.WriteRecord(record)
 		c.Assert(err, IsNil)
 	}
-	err = w.Flush()
-	c.Assert(err, IsNil)
-	err = f.Close()
+	err = recordWriter.Close()
 	c.Assert(err, IsNil)
 
 	// The Records we read back should match the Records we wrote.
-	f, err = os.Open(path)
-	c.Assert(err, IsNil)
-	r := bufio.NewReader(f)
-	tableHeader, err := ReadTableHeader(r)
-	c.Assert(err, IsNil)
-	c.Assert(tableHeader, DeepEquals, expectedTableHeader)
-	for _, expected := range expectedRecords {
-		record, err := ReadRecord(r, tableHeader)
-		c.Assert(err, IsNil)
-		c.Assert(record.Equals(expected), IsTrue)
-	}
-	_, err = ReadRecord(r, tableHeader)
-	c.Assert(err, Equals, io.EOF)
-
 	// Using a scan should produce the same result.
 	scan, err := NewScan(path)
 	c.Assert(err, IsNil)
