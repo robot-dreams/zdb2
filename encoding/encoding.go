@@ -2,6 +2,7 @@ package encoding
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 
 	"github.com/dropbox/godropbox/errors"
@@ -46,6 +47,29 @@ func ReadTerminatedString(r *bufio.Reader) (string, error) {
 		return "", err
 	}
 	return s[:len(s)-1], nil
+}
+
+func SerializeValue(type_ zdb2.Type, value interface{}) ([]byte, error) {
+	var err error
+	var buf bytes.Buffer
+	switch type_ {
+	case zdb2.Int32:
+		err = binary.Write(&buf, ByteOrder, value)
+	case zdb2.Float64:
+		binary.Write(&buf, ByteOrder, value)
+	case zdb2.String:
+		_, err := buf.WriteString(value.(string))
+		if err != nil {
+			return nil, err
+		}
+		err = buf.WriteByte(StringTerminator)
+	default:
+		err = errors.Newf("Unsupported type %v", type_)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // TODO: Will handling the panic slow down performance?
