@@ -4,6 +4,7 @@ import (
 	"bufio"
 
 	"github.com/robot-dreams/zdb2"
+	"github.com/robot-dreams/zdb2/encoding"
 )
 
 type FieldHeader struct {
@@ -12,7 +13,7 @@ type FieldHeader struct {
 }
 
 func ReadFieldHeader(r *bufio.Reader) (*FieldHeader, error) {
-	name, err := zdb2.ReadTerminatedString(r)
+	name, err := encoding.ReadTerminatedString(r)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func ReadFieldHeader(r *bufio.Reader) (*FieldHeader, error) {
 }
 
 func (f *FieldHeader) Write(w *bufio.Writer) error {
-	err := zdb2.WriteTerminatedString(w, f.Name)
+	err := encoding.WriteTerminatedString(w, f.Name)
 	if err != nil {
 		return err
 	}
@@ -41,7 +42,7 @@ type Header struct {
 }
 
 func ReadHeader(r *bufio.Reader) (*Header, error) {
-	name, err := zdb2.ReadTerminatedString(r)
+	name, err := encoding.ReadTerminatedString(r)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +66,7 @@ func ReadHeader(r *bufio.Reader) (*Header, error) {
 }
 
 func (h *Header) Write(w *bufio.Writer) error {
-	err := zdb2.WriteTerminatedString(w, h.Name)
+	err := encoding.WriteTerminatedString(w, h.Name)
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,7 @@ func (h *Header) Write(w *bufio.Writer) error {
 func (h *Header) ReadRecord(r *bufio.Reader) (zdb2.Record, error) {
 	record := make(zdb2.Record, len(h.FieldHeaders))
 	for i, fieldHeader := range h.FieldHeaders {
-		value, err := zdb2.ReadValue(r, fieldHeader.Type)
+		value, err := encoding.ReadValue(r, fieldHeader.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +100,7 @@ func (h *Header) ReadRecord(r *bufio.Reader) (zdb2.Record, error) {
 //     record[i] matches t.FieldHeaders[i].Type for 0 <= i < len(record)
 func (h *Header) WriteRecord(w *bufio.Writer, record zdb2.Record) error {
 	for i, value := range record {
-		err := zdb2.WriteValue(w, h.FieldHeaders[i].Type, value)
+		err := encoding.WriteValue(w, h.FieldHeaders[i].Type, value)
 		if err != nil {
 			return err
 		}

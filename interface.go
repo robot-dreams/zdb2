@@ -1,5 +1,14 @@
 package zdb2
 
+type Type uint8
+
+const (
+	UnknownType Type = iota
+	Int32
+	Float64
+	String
+)
+
 type Record []interface{}
 
 func (r1 Record) Equals(r2 Record) bool {
