@@ -52,9 +52,9 @@ func ReadTerminatedString(r *bufio.Reader) (string, error) {
 func WriteValue(w *bufio.Writer, type_ zdb2.Type, value interface{}) error {
 	switch type_ {
 	case zdb2.Int32:
-		return binary.Write(w, ByteOrder, value.(int32))
+		return binary.Write(w, ByteOrder, value)
 	case zdb2.Float64:
-		return binary.Write(w, ByteOrder, value.(float64))
+		return binary.Write(w, ByteOrder, value)
 	case zdb2.String:
 		return WriteTerminatedString(w, value.(string))
 	default:
