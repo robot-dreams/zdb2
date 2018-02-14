@@ -2,6 +2,7 @@ package zdb2
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/dropbox/godropbox/errors"
 )
@@ -66,9 +67,9 @@ func MustFieldIndexAndType(t *TableHeader, fieldName string) (int, Type) {
 	panic(errors.Newf("%v does not have field %v", *t, fieldName))
 }
 
-func CloseAll(iters []Iterator) (firstErr error) {
-	for _, iter := range iters {
-		err := iter.Close()
+func CloseAll(cs []io.Closer) (firstErr error) {
+	for _, c := range cs {
+		err := c.Close()
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
