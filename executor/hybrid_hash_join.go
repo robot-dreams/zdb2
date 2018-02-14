@@ -18,19 +18,27 @@ import (
 
 const (
 	// Bloom filter parameters.
-	m = 1 << 24
+	m = 1 << 26
 	k = 5
 
-	// If you ask for more than this many partitions, then you can go hash join
-	// yourself with yourself.
+	// No one needs more than this many partitions.
 	maxPartitions = 1 << 20
 )
 
+// We define a separate result type so that we can use a channel for decoupling
+// result generation from result consumption.
 type result struct {
 	record zdb2.Record
 	err    error
 }
 
+// hybridHashJoin supports EquiJoin using the hybrid strategy described in
+// section 2.5 of the following reference:
+//
+//     http://www.cs.ucr.edu/~tsotras/cs236/W15/join.pdf
+//
+// Note that the query planner is responsible for choosing appropriate values of
+// inMemoryFraction and numPartitions when instantiating the hybridHashJoin.
 type hybridHashJoin struct {
 	// r and s are Iterators over the two input tables to be joined, where r is
 	// the smaller of the two tables.
@@ -103,20 +111,44 @@ func NewHybridHashJoin(
 		partitionDir:     partitionDir,
 		results:          make(chan *result),
 	}
-	go h.start()
+	go h.startResultGeneration()
 	return h, nil
 }
 
-func (h *hybridHashJoin) start() {
+func (h *hybridHashJoin) startResultGeneration() {
 	defer close(h.results)
 
-	_, _, err := h.initialPass()
+	rPartitionPaths, sPartitionPaths, err := h.initialPass()
 	if err != nil {
 		h.results <- &result{nil, err}
 		return
 	}
+
+	for i := 0; i < h.numPartitions; i++ {
+		rPartitionPath := rPartitionPaths[i]
+		sPartitionPath := sPartitionPaths[i]
+		err := h.processPartition(rPartitionPath, sPartitionPath)
+		if err != nil {
+			h.results <- &result{nil, err}
+			return
+		}
+	}
 }
 
+// The initial pass performs the following steps:
+//
+// - Add all join field values in r to a Bloom filter, and then immediately
+//   discard any records in s that do not match any of the join field values
+//
+// - Store some records of r in an in-memory hash table, and then immediately
+//   join them with any records of s that match
+//
+// - Write the remaining records of r and s to the appropriate on-disk
+//   partitions for processing in a later step
+//
+// The returned slices are the full paths to the on-disk partitions of r and s,
+// where the index in the slice indicates the partition number.  Note that the
+// returned slices are both guaranteed to have length h.numPartitions.
 func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 	// We keep a Bloom filter over the set of join field values in r, so that
 	// during our initial pass over s, we can immediately discard records which
@@ -131,87 +163,74 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 	inMemoryHashTable := make(map[interface{}][]zdb2.Record)
 
 	// Perform initial pass over the records in r.
-	rPartitionPaths := h.partitionPaths(
-		h.r.TableHeader().Name, h.numPartitions)
-	rPartitionedWrite, err := stream.NewPartitionedWrite(
-		rPartitionPaths, h.r.TableHeader())
+	rPartitionPaths := h.partitionPaths(h.r.TableHeader().Name)
+	rPartitionedWrite, err := stream.NewPartitionedWrite(rPartitionPaths, h.r.TableHeader())
 	if err != nil {
 		return nil, nil, err
 	}
-	rJoinIndex, rJoinType := zdb2.MustFieldIndexAndType(
-		h.r.TableHeader(), h.rJoinField)
-	for {
-		rRecord, err := h.r.Next()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, nil, err
-		}
-		rJoinValue := rRecord[rJoinIndex]
+	rJoinIndex, rJoinType := zdb2.MustFieldIndexAndType(h.r.TableHeader(), h.rJoinField)
+	rRecordFunc := func(
+		rRecord zdb2.Record,
+		rJoinType zdb2.Type,
+		rJoinValue interface{},
+	) error {
 		rSerializedJoinValue, err := encoding.SerializeValue(rJoinType, rJoinValue)
-
-		// Add field value to Bloom filter.
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 		bloomFilter.Add(rSerializedJoinValue)
 
 		// Send the record to the correct output partition (either one of the
 		// on-disk partitions, or the in-memory hash table).
 		partition := h.getPartition(
-			h.hashFunc,
 			inMemoryHashThreshold,
-			h.numPartitions,
 			rSerializedJoinValue)
 		if partition == h.numPartitions {
-			inMemoryHashTable[rJoinValue] = append(
-				inMemoryHashTable[rJoinValue],
-				rRecord)
+			inMemoryHashTable[rJoinValue] = append(inMemoryHashTable[rJoinValue], rRecord)
 		} else {
 			err = rPartitionedWrite.WriteRecordToPartition(rRecord, partition)
 			if err != nil {
-				return nil, nil, err
+				return err
 			}
 		}
-		err = rPartitionedWrite.Close()
-		if err != nil {
-			return nil, nil, err
-		}
+		return nil
 	}
-
-	// Perform initial pass over the records in s.
-	sPartitionPaths := h.partitionPaths(
-		h.s.TableHeader().Name, h.numPartitions)
-	sPartitionedWrite, err := stream.NewPartitionedWrite(
-		sPartitionPaths, h.s.TableHeader())
+	err = h.forEachRecord(h.r, rJoinIndex, rJoinType, rRecordFunc)
 	if err != nil {
 		return nil, nil, err
 	}
-	sJoinIndex, sJoinType := zdb2.MustFieldIndexAndType(
-		h.s.TableHeader(), h.sJoinField)
-	for {
-		sRecord, err := h.r.Next()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, nil, err
-		}
-		sJoinValue := sRecord[sJoinIndex]
-		sSerializedJoinValue, err := encoding.SerializeValue(sJoinType, sJoinValue)
+	err = rPartitionedWrite.Close()
+	if err != nil {
+		return nil, nil, err
+	}
 
+	// Perform initial pass over the records in s.
+	sPartitionPaths := h.partitionPaths(h.s.TableHeader().Name)
+	sPartitionedWrite, err := stream.NewPartitionedWrite(sPartitionPaths, h.s.TableHeader())
+	if err != nil {
+		return nil, nil, err
+	}
+	sJoinIndex, sJoinType := zdb2.MustFieldIndexAndType(h.s.TableHeader(), h.sJoinField)
+	sRecordFunc := func(
+		sRecord zdb2.Record,
+		sJoinType zdb2.Type,
+		sJoinValue interface{},
+	) error {
 		// If the join value doesn't appear in the Bloom filter, then the record
 		// definitely won't be joined with any records in r, and we can discard
 		// it right away.
+		sSerializedJoinValue, err := encoding.SerializeValue(sJoinType, sJoinValue)
+		if err != nil {
+			return err
+		}
 		if !bloomFilter.Test(sSerializedJoinValue) {
-			continue
+			return nil
 		}
 
 		// Send the record to the correct output partition (either to one of the
 		// on-disk partitions, or for checking against the in-memory hash table).
 		partition := h.getPartition(
-			h.hashFunc,
 			inMemoryHashThreshold,
-			h.numPartitions,
 			sSerializedJoinValue)
 		if partition == h.numPartitions {
 			// If the join value appears in the in-memory hash table, then we can
@@ -222,44 +241,106 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		} else {
 			err := sPartitionedWrite.WriteRecordToPartition(sRecord, partition)
 			if err != nil {
-				return nil, nil, err
+				return err
 			}
 		}
-		err = sPartitionedWrite.Close()
-		if err != nil {
-			return nil, nil, err
-		}
+		return nil
+	}
+	err = h.forEachRecord(h.s, sJoinIndex, sJoinType, sRecordFunc)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = sPartitionedWrite.Close()
+	if err != nil {
+		return nil, nil, err
 	}
 	return rPartitionPaths, sPartitionPaths, nil
 }
 
-// The result will be in [0, numPartitions]; if the result is equal to
-// numPartitions then the record belongs to the in-memory "partition".
-func (h *hybridHashJoin) getPartition(
-	hashFunc hash.Hash32,
-	inMemoryHashThreshold uint32,
-	numPartitions int,
-	serializedValue []byte,
-) int {
-	hashFunc.Reset()
-	_, _ = hashFunc.Write(serializedValue)
-	n := hashFunc.Sum32()
-	if n <= inMemoryHashThreshold {
-		return numPartitions
-	} else {
-		return int(n % uint32(numPartitions))
-	}
-}
-
-func (h *hybridHashJoin) partitionPaths(
-	prefix string,
-	numPartitions int,
-) []string {
-	result := make([]string, numPartitions)
-	for i := 0; i < numPartitions; i++ {
+func (h *hybridHashJoin) partitionPaths(prefix string) []string {
+	result := make([]string, h.numPartitions)
+	for i := 0; i < h.numPartitions; i++ {
 		result[i] = h.partitionDir + "/" + prefix + "-" + strconv.Itoa(i)
 	}
 	return result
+}
+
+// The result will be in [0, h.numPartitions]; if the result is equal to
+// h.numPartitions then the record belongs to the in-memory "partition".
+func (h *hybridHashJoin) getPartition(
+	inMemoryHashThreshold uint32,
+	serializedValue []byte,
+) int {
+	h.hashFunc.Reset()
+	_, _ = h.hashFunc.Write(serializedValue)
+	n := h.hashFunc.Sum32()
+	if n <= inMemoryHashThreshold {
+		return h.numPartitions
+	} else {
+		return int(n % uint32(h.numPartitions))
+	}
+}
+
+func (h *hybridHashJoin) forEachRecord(
+	iter zdb2.Iterator,
+	joinIndex int,
+	joinType zdb2.Type,
+	recordFunc func(zdb2.Record, zdb2.Type, interface{}) error,
+) error {
+	for {
+		record, err := iter.Next()
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		joinValue := record[joinIndex]
+		err = recordFunc(record, joinType, joinValue)
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string) error {
+	// Load all records from the partition of r into an in-memory hash table.
+	rScan, err := stream.NewScan(rPartitionPath)
+	if err != nil {
+		return err
+	}
+	inMemoryHashTable := make(map[interface{}][]zdb2.Record)
+	rJoinIndex, rJoinType := zdb2.MustFieldIndexAndType(h.r.TableHeader(), h.rJoinField)
+	rRecordFunc := func(
+		rRecord zdb2.Record,
+		rJoinType zdb2.Type,
+		rJoinValue interface{},
+	) error {
+		inMemoryHashTable[rJoinValue] = append(inMemoryHashTable[rJoinValue], rRecord)
+		return nil
+	}
+	err = h.forEachRecord(rScan, rJoinIndex, rJoinType, rRecordFunc)
+	if err != nil {
+		return err
+	}
+
+	// Scan all records from the corresponding partition of s and compare them
+	// against the in-memory hash table.
+	sScan, err := stream.NewScan(sPartitionPath)
+	if err != nil {
+		return err
+	}
+	sJoinIndex, sJoinType := zdb2.MustFieldIndexAndType(h.s.TableHeader(), h.sJoinField)
+	sRecordFunc := func(
+		sRecord zdb2.Record,
+		sJoinType zdb2.Type,
+		sJoinValue interface{},
+	) error {
+		for _, rRecord := range inMemoryHashTable[sJoinValue] {
+			h.results <- &result{zdb2.JoinedRecord(rRecord, sRecord), nil}
+		}
+		return nil
+	}
+	return h.forEachRecord(sScan, sJoinIndex, sJoinType, sRecordFunc)
 }
 
 func (h *hybridHashJoin) TableHeader() *zdb2.TableHeader {
