@@ -16,9 +16,9 @@ type StreamSuite struct{}
 var _ = Suite(&StreamSuite{})
 
 func (s *StreamSuite) TestTable(c *C) {
-	expectedHeader := &Header{
+	expectedTableHeader := &zdb2.TableHeader{
 		Name: "movies",
-		FieldHeaders: []*FieldHeader{
+		Fields: []*zdb2.Field{
 			{"title", zdb2.String},
 			{"rating", zdb2.Float64},
 			{"views", zdb2.Int32},
@@ -36,10 +36,10 @@ func (s *StreamSuite) TestTable(c *C) {
 	f, err := os.Create(path)
 	c.Assert(err, IsNil)
 	w := bufio.NewWriter(f)
-	err = expectedHeader.Write(w)
+	err = WriteTableHeader(w, expectedTableHeader)
 	c.Assert(err, IsNil)
 	for _, record := range expectedRecords {
-		err = expectedHeader.WriteRecord(w, record)
+		err = WriteRecord(w, expectedTableHeader, record)
 		c.Assert(err, IsNil)
 	}
 	err = w.Flush()
@@ -51,14 +51,14 @@ func (s *StreamSuite) TestTable(c *C) {
 	f, err = os.Open(path)
 	c.Assert(err, IsNil)
 	r := bufio.NewReader(f)
-	header, err := ReadHeader(r)
+	tableHeader, err := ReadTableHeader(r)
 	c.Assert(err, IsNil)
-	c.Assert(header, DeepEquals, expectedHeader)
+	c.Assert(tableHeader, DeepEquals, expectedTableHeader)
 	for _, expected := range expectedRecords {
-		record, err := header.ReadRecord(r)
+		record, err := ReadRecord(r, tableHeader)
 		c.Assert(err, IsNil)
 		c.Assert(record.Equals(expected), IsTrue)
 	}
-	_, err = header.ReadRecord(r)
+	_, err = ReadRecord(r, tableHeader)
 	c.Assert(err, Equals, io.EOF)
 }

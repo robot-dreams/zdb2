@@ -7,12 +7,7 @@ import (
 	"github.com/robot-dreams/zdb2/encoding"
 )
 
-type FieldHeader struct {
-	Name string
-	Type zdb2.Type
-}
-
-func ReadFieldHeader(r *bufio.Reader) (*FieldHeader, error) {
+func ReadField(r *bufio.Reader) (*zdb2.Field, error) {
 	name, err := encoding.ReadTerminatedString(r)
 	if err != nil {
 		return nil, err
@@ -21,13 +16,13 @@ func ReadFieldHeader(r *bufio.Reader) (*FieldHeader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FieldHeader{
+	return &zdb2.Field{
 		Name: name,
 		Type: zdb2.Type(b),
 	}, nil
 }
 
-func (f *FieldHeader) Write(w *bufio.Writer) error {
+func WriteField(w *bufio.Writer, f *zdb2.Field) error {
 	err := encoding.WriteTerminatedString(w, f.Name)
 	if err != nil {
 		return err
@@ -35,13 +30,7 @@ func (f *FieldHeader) Write(w *bufio.Writer) error {
 	return w.WriteByte(uint8(f.Type))
 }
 
-type Header struct {
-	Name string
-	// Invariant: len(FieldHeaders) <= 0xFF
-	FieldHeaders []*FieldHeader
-}
-
-func ReadHeader(r *bufio.Reader) (*Header, error) {
+func ReadTableHeader(r *bufio.Reader) (*zdb2.TableHeader, error) {
 	name, err := encoding.ReadTerminatedString(r)
 	if err != nil {
 		return nil, err
@@ -51,31 +40,31 @@ func ReadHeader(r *bufio.Reader) (*Header, error) {
 		return nil, err
 	}
 	numFields := int(b)
-	fieldHeaders := make([]*FieldHeader, numFields)
+	fields := make([]*zdb2.Field, numFields)
 	for i := 0; i < numFields; i++ {
-		fieldHeader, err := ReadFieldHeader(r)
+		field, err := ReadField(r)
 		if err != nil {
 			return nil, err
 		}
-		fieldHeaders[i] = fieldHeader
+		fields[i] = field
 	}
-	return &Header{
-		Name:         name,
-		FieldHeaders: fieldHeaders,
+	return &zdb2.TableHeader{
+		Name:   name,
+		Fields: fields,
 	}, nil
 }
 
-func (h *Header) Write(w *bufio.Writer) error {
-	err := encoding.WriteTerminatedString(w, h.Name)
+func WriteTableHeader(w *bufio.Writer, t *zdb2.TableHeader) error {
+	err := encoding.WriteTerminatedString(w, t.Name)
 	if err != nil {
 		return err
 	}
-	err = w.WriteByte(uint8(len(h.FieldHeaders)))
+	err = w.WriteByte(uint8(len(t.Fields)))
 	if err != nil {
 		return err
 	}
-	for _, fieldHeader := range h.FieldHeaders {
-		err = fieldHeader.Write(w)
+	for _, field := range t.Fields {
+		err = WriteField(w, field)
 		if err != nil {
 			return err
 		}
@@ -83,9 +72,9 @@ func (h *Header) Write(w *bufio.Writer) error {
 	return nil
 }
 
-func (h *Header) ReadRecord(r *bufio.Reader) (zdb2.Record, error) {
-	record := make(zdb2.Record, len(h.FieldHeaders))
-	for i, fieldHeader := range h.FieldHeaders {
+func ReadRecord(r *bufio.Reader, t *zdb2.TableHeader) (zdb2.Record, error) {
+	record := make(zdb2.Record, len(t.Fields))
+	for i, fieldHeader := range t.Fields {
 		value, err := encoding.ReadValue(r, fieldHeader.Type)
 		if err != nil {
 			return nil, err
@@ -96,11 +85,11 @@ func (h *Header) ReadRecord(r *bufio.Reader) (zdb2.Record, error) {
 }
 
 // Preconditions:
-//     len(record) == len(t.FieldHeaders)
-//     record[i] matches t.FieldHeaders[i].Type for 0 <= i < len(record)
-func (h *Header) WriteRecord(w *bufio.Writer, record zdb2.Record) error {
+//     len(record) == len(t.Fields)
+//     record[i] matches t.Fields[i].Type for 0 <= i < len(record)
+func WriteRecord(w *bufio.Writer, t *zdb2.TableHeader, record zdb2.Record) error {
 	for i, value := range record {
-		err := encoding.WriteValue(w, h.FieldHeaders[i].Type, value)
+		err := encoding.WriteValue(w, t.Fields[i].Type, value)
 		if err != nil {
 			return err
 		}

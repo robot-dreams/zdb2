@@ -9,6 +9,17 @@ const (
 	String
 )
 
+type Field struct {
+	Name string
+	Type Type
+}
+
+type TableHeader struct {
+	Name string
+	// Invariant: len(Fields) <= 0xFF
+	Fields []*Field
+}
+
 type Record []interface{}
 
 func (r1 Record) Equals(r2 Record) bool {
@@ -26,7 +37,7 @@ func (r1 Record) Equals(r2 Record) bool {
 }
 
 type Iterator interface {
-	Init() error
+	Header() *TableHeader
 	Next() (Record, error)
 	Close() error
 }
