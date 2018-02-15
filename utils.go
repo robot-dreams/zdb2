@@ -3,12 +3,30 @@ package zdb2
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/dropbox/godropbox/errors"
 	. "github.com/dropbox/godropbox/gocheck2"
 	. "gopkg.in/check.v1"
 )
+
+func CoerceToFloat64(type_ Type, value interface{}) float64 {
+	switch type_ {
+	case Int32:
+		return float64(value.(int32))
+	case Float64:
+		return value.(float64)
+	case String:
+		x, err := strconv.ParseFloat(value.(string), 64)
+		if err != nil {
+			panic(err)
+		}
+		return x
+	default:
+		panic(errors.Newf("Unsupported type %v", type_))
+	}
+}
 
 func Less(type_ Type, v1 interface{}, v2 interface{}) bool {
 	switch type_ {
