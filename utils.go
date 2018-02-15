@@ -21,14 +21,13 @@ func Less(type_ Type, v1 interface{}, v2 interface{}) bool {
 	}
 }
 
-// Returns -1 if the field does not appear in the table.
 func (t *TableHeader) FieldPosition(fieldName string) int {
 	for i, field := range t.Fields {
 		if field.Name == fieldName {
 			return i
 		}
 	}
-	return -1
+	panic(errors.Newf("%v does not appear in %v", fieldName, *t))
 }
 
 func JoinedRecord(r1, r2 Record) Record {
