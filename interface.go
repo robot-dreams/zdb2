@@ -36,6 +36,8 @@ func (r1 Record) Equals(r2 Record) bool {
 	return true
 }
 
+type Predicate func(Record) bool
+
 type Iterator interface {
 	TableHeader() *TableHeader
 	Next() (Record, error)
