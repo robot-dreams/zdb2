@@ -51,5 +51,4 @@ func (s *UtilsSuite) TestFieldPosition(c *C) {
 	}
 	c.Assert(t.FieldPosition("id"), Equals, 0)
 	c.Assert(t.FieldPosition("name"), Equals, 1)
-	c.Assert(t.FieldPosition("birthday"), Equals, -1)
 }

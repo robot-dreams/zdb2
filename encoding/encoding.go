@@ -72,7 +72,6 @@ func SerializeValue(type_ zdb2.Type, value interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// TODO: Will handling the panic slow down performance?
 func WriteValue(w *bufio.Writer, type_ zdb2.Type, value interface{}) error {
 	switch type_ {
 	case zdb2.Int32:
