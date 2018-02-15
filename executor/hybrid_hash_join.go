@@ -18,8 +18,8 @@ import (
 
 const (
 	// Bloom filter parameters.
-	m = 1 << 26
-	k = 5
+	m = 1 << 28
+	k = 3
 
 	// No one needs more than this many partitions.
 	maxPartitions = 1 << 20
