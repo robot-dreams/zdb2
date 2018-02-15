@@ -50,10 +50,10 @@ var _ zdb2.Iterator = (*diskSort)(nil)
 
 func NewDiskSort(
 	iter zdb2.Iterator,
-	t *zdb2.TableHeader,
 	sortField string,
 	descending bool,
 ) (*diskSort, error) {
+	t := iter.TableHeader()
 	sortFieldPosition, sortFieldType := zdb2.MustFieldPositionAndType(t, sortField)
 	sortedRunDir, err := ioutil.TempDir("", "")
 	if err != nil {

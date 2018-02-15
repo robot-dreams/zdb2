@@ -14,16 +14,17 @@ var _ = Suite(&DiskSortSuite{})
 func checkDiskSort(
 	c *C,
 	iter zdb2.Iterator,
-	t *zdb2.TableHeader,
 	sortField string,
 	descending bool,
 ) {
-	d, err := NewDiskSort(iter, t, sortField, descending)
+	d, err := NewDiskSort(iter, sortField, descending)
 	c.Assert(err, IsNil)
 	records, err := zdb2.ReadAll(d)
 	c.Assert(err, IsNil)
 
-	sortFieldPosition, sortFieldType := zdb2.MustFieldPositionAndType(t, sortField)
+	sortFieldPosition, sortFieldType := zdb2.MustFieldPositionAndType(
+		iter.TableHeader(),
+		sortField)
 	for i := 1; i < len(records); i++ {
 		v1 := records[i-1][sortFieldPosition]
 		v2 := records[i][sortFieldPosition]
@@ -62,7 +63,7 @@ func (s *DiskSortSuite) TestDiskSort(c *C) {
 	}
 	for _, fieldName := range []string{"movie", "rating", "year"} {
 		for _, descending := range []bool{false, true} {
-			checkDiskSort(c, NewInMemoryScan(t, records), t, fieldName, descending)
+			checkDiskSort(c, NewInMemoryScan(t, records), fieldName, descending)
 		}
 	}
 
@@ -78,7 +79,7 @@ func (s *DiskSortSuite) TestDiskSort(c *C) {
 		for _, descending := range []bool{false, true} {
 			iter, err := NewCSVScan("movies.csv", t)
 			c.Assert(err, IsNil)
-			checkDiskSort(c, iter, t, fieldName, descending)
+			checkDiskSort(c, iter, fieldName, descending)
 		}
 	}
 }
