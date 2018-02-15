@@ -1,4 +1,4 @@
-package encoding
+package zdb2
 
 import (
 	"bufio"
@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 
 	"github.com/dropbox/godropbox/errors"
-	"github.com/robot-dreams/zdb2"
 )
 
 var ByteOrder = binary.LittleEndian
@@ -14,23 +13,23 @@ var ByteOrder = binary.LittleEndian
 // Use null-terminated strings.
 var StringTerminator uint8 = 0
 
-func ReadValue(r *bufio.Reader, type_ zdb2.Type) (interface{}, error) {
+func ReadValue(r *bufio.Reader, type_ Type) (interface{}, error) {
 	switch type_ {
-	case zdb2.Int32:
+	case Int32:
 		var x int32
 		err := binary.Read(r, ByteOrder, &x)
 		if err != nil {
 			return nil, err
 		}
 		return x, nil
-	case zdb2.Float64:
+	case Float64:
 		var x float64
 		err := binary.Read(r, ByteOrder, &x)
 		if err != nil {
 			return nil, err
 		}
 		return x, nil
-	case zdb2.String:
+	case String:
 		s, err := ReadTerminatedString(r)
 		if err != nil {
 			return nil, err
@@ -49,15 +48,15 @@ func ReadTerminatedString(r *bufio.Reader) (string, error) {
 	return s[:len(s)-1], nil
 }
 
-func SerializeValue(type_ zdb2.Type, value interface{}) ([]byte, error) {
+func SerializeValue(type_ Type, value interface{}) ([]byte, error) {
 	var err error
 	var buf bytes.Buffer
 	switch type_ {
-	case zdb2.Int32:
+	case Int32:
 		err = binary.Write(&buf, ByteOrder, value)
-	case zdb2.Float64:
+	case Float64:
 		binary.Write(&buf, ByteOrder, value)
-	case zdb2.String:
+	case String:
 		_, err := buf.WriteString(value.(string))
 		if err != nil {
 			return nil, err
@@ -72,13 +71,13 @@ func SerializeValue(type_ zdb2.Type, value interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func WriteValue(w *bufio.Writer, type_ zdb2.Type, value interface{}) error {
+func WriteValue(w *bufio.Writer, type_ Type, value interface{}) error {
 	switch type_ {
-	case zdb2.Int32:
+	case Int32:
 		return binary.Write(w, ByteOrder, value)
-	case zdb2.Float64:
+	case Float64:
 		return binary.Write(w, ByteOrder, value)
-	case zdb2.String:
+	case String:
 		return WriteTerminatedString(w, value.(string))
 	default:
 		return errors.Newf("Unsupported type %v", type_)

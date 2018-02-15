@@ -23,15 +23,6 @@ func Less(type_ Type, v1 interface{}, v2 interface{}) bool {
 	}
 }
 
-func (t *TableHeader) FieldPosition(fieldName string) int {
-	for i, field := range t.Fields {
-		if field.Name == fieldName {
-			return i
-		}
-	}
-	panic(errors.Newf("%v does not appear in %v", fieldName, *t))
-}
-
 func JoinedRecord(r1, r2 Record) Record {
 	result := make(Record, 0, len(r1)+len(r2))
 	result = append(result, r1...)
@@ -83,7 +74,7 @@ func qualifiedFields(t *TableHeader) []*Field {
 	return result
 }
 
-func MustFieldIndexAndType(t *TableHeader, fieldName string) (int, Type) {
+func MustFieldPositionAndType(t *TableHeader, fieldName string) (int, Type) {
 	for i, field := range t.Fields {
 		if field.Name == fieldName {
 			return i, field.Type

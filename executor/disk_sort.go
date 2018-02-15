@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/robot-dreams/zdb2"
-	"github.com/robot-dreams/zdb2/encoding/stream"
+	"github.com/robot-dreams/zdb2/executor/stream"
 )
 
 var inMemorySortBatchSize = 100000
@@ -54,8 +54,7 @@ func NewDiskSort(
 	sortField string,
 	descending bool,
 ) (*diskSort, error) {
-	sortFieldPosition := t.FieldPosition(sortField)
-	sortFieldType := t.Fields[sortFieldPosition].Type
+	sortFieldPosition, sortFieldType := zdb2.MustFieldPositionAndType(t, sortField)
 	sortedRunDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return nil, err

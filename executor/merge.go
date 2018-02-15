@@ -47,12 +47,12 @@ func NewMerge(
 			inputs = append(inputs, &iterWithRecord{iter, record})
 		}
 	}
-	sortFieldPosition := t.FieldPosition(sortField)
+	sortFieldPosition, sortFieldType := zdb2.MustFieldPositionAndType(t, sortField)
 	m := &merge{
 		inputs:            inputs,
 		t:                 t,
 		sortFieldPosition: sortFieldPosition,
-		sortFieldType:     t.Fields[sortFieldPosition].Type,
+		sortFieldType:     sortFieldType,
 		descending:        descending,
 		exhaustedIters:    exhaustedIters,
 	}

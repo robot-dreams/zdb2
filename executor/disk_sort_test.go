@@ -5,7 +5,6 @@ import (
 
 	. "github.com/dropbox/godropbox/gocheck2"
 	"github.com/robot-dreams/zdb2"
-	"github.com/robot-dreams/zdb2/encoding"
 )
 
 type DiskSortSuite struct{}
@@ -24,8 +23,7 @@ func checkDiskSort(
 	records, err := zdb2.ReadAll(d)
 	c.Assert(err, IsNil)
 
-	sortFieldPosition := t.FieldPosition(sortField)
-	sortFieldType := t.Fields[sortFieldPosition].Type
+	sortFieldPosition, sortFieldType := zdb2.MustFieldPositionAndType(t, sortField)
 	for i := 1; i < len(records); i++ {
 		v1 := records[i-1][sortFieldPosition]
 		v2 := records[i][sortFieldPosition]
@@ -64,7 +62,7 @@ func (s *DiskSortSuite) TestDiskSort(c *C) {
 	}
 	for _, fieldName := range []string{"movie", "rating", "year"} {
 		for _, descending := range []bool{false, true} {
-			checkDiskSort(c, zdb2.NewInMemoryScan(t, records), t, fieldName, descending)
+			checkDiskSort(c, NewInMemoryScan(t, records), t, fieldName, descending)
 		}
 	}
 
@@ -78,7 +76,7 @@ func (s *DiskSortSuite) TestDiskSort(c *C) {
 	}
 	for _, fieldName := range []string{"movieId", "title", "genres"} {
 		for _, descending := range []bool{false, true} {
-			iter, err := encoding.NewCSVScan("movies.csv", t)
+			iter, err := NewCSVScan("movies.csv", t)
 			c.Assert(err, IsNil)
 			checkDiskSort(c, iter, t, fieldName, descending)
 		}

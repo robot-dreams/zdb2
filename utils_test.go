@@ -41,7 +41,7 @@ func (s *UtilsSuite) TestJoinedHeader(c *C) {
 		})
 }
 
-func (s *UtilsSuite) TestFieldPosition(c *C) {
+func (s *UtilsSuite) TestMustFieldPositionAndType(c *C) {
 	t := &TableHeader{
 		Name: "users",
 		Fields: []*Field{
@@ -49,6 +49,10 @@ func (s *UtilsSuite) TestFieldPosition(c *C) {
 			{"name", String},
 		},
 	}
-	c.Assert(t.FieldPosition("id"), Equals, 0)
-	c.Assert(t.FieldPosition("name"), Equals, 1)
+	position, type_ := MustFieldPositionAndType(t, "id")
+	c.Assert(position, Equals, 0)
+	c.Assert(type_, Equals, Int32)
+	position, type_ = MustFieldPositionAndType(t, "name")
+	c.Assert(position, Equals, 1)
+	c.Assert(type_, Equals, String)
 }

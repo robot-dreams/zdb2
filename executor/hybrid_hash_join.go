@@ -11,8 +11,7 @@ import (
 
 	"github.com/dropbox/godropbox/errors"
 	"github.com/robot-dreams/zdb2"
-	"github.com/robot-dreams/zdb2/encoding"
-	"github.com/robot-dreams/zdb2/encoding/stream"
+	"github.com/robot-dreams/zdb2/executor/stream"
 	"github.com/willf/bloom"
 )
 
@@ -147,8 +146,8 @@ func (h *hybridHashJoin) startResultGeneration() {
 //   partitions for processing in a later step
 //
 // The returned slices are the full paths to the on-disk partitions of r and s,
-// where the index in the slice indicates the partition number.  Note that the
-// returned slices are both guaranteed to have length h.numPartitions.
+// where the position in the slice indicates the partition number.  Note that
+// the returned slices are both guaranteed to have length h.numPartitions.
 func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 	// We keep a Bloom filter over the set of join field values in r, so that
 	// during our initial pass over s, we can immediately discard records which
@@ -168,13 +167,14 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	rJoinIndex, rJoinType := zdb2.MustFieldIndexAndType(h.r.TableHeader(), h.rJoinField)
+	rJoinPosition, rJoinType := zdb2.MustFieldPositionAndType(
+		h.r.TableHeader(), h.rJoinField)
 	rRecordFunc := func(
 		rRecord zdb2.Record,
 		rJoinType zdb2.Type,
 		rJoinValue interface{},
 	) error {
-		rSerializedJoinValue, err := encoding.SerializeValue(rJoinType, rJoinValue)
+		rSerializedJoinValue, err := zdb2.SerializeValue(rJoinType, rJoinValue)
 		if err != nil {
 			return err
 		}
@@ -195,7 +195,7 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		}
 		return nil
 	}
-	err = h.forEachRecord(h.r, rJoinIndex, rJoinType, rRecordFunc)
+	err = h.forEachRecord(h.r, rJoinPosition, rJoinType, rRecordFunc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -210,7 +210,8 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	sJoinIndex, sJoinType := zdb2.MustFieldIndexAndType(h.s.TableHeader(), h.sJoinField)
+	sJoinPosition, sJoinType := zdb2.MustFieldPositionAndType(
+		h.s.TableHeader(), h.sJoinField)
 	sRecordFunc := func(
 		sRecord zdb2.Record,
 		sJoinType zdb2.Type,
@@ -219,7 +220,7 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		// If the join value doesn't appear in the Bloom filter, then the record
 		// definitely won't be joined with any records in r, and we can discard
 		// it right away.
-		sSerializedJoinValue, err := encoding.SerializeValue(sJoinType, sJoinValue)
+		sSerializedJoinValue, err := zdb2.SerializeValue(sJoinType, sJoinValue)
 		if err != nil {
 			return err
 		}
@@ -246,7 +247,7 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		}
 		return nil
 	}
-	err = h.forEachRecord(h.s, sJoinIndex, sJoinType, sRecordFunc)
+	err = h.forEachRecord(h.s, sJoinPosition, sJoinType, sRecordFunc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -283,7 +284,7 @@ func (h *hybridHashJoin) getPartition(
 
 func (h *hybridHashJoin) forEachRecord(
 	iter zdb2.Iterator,
-	joinIndex int,
+	joinPosition int,
 	joinType zdb2.Type,
 	recordFunc func(zdb2.Record, zdb2.Type, interface{}) error,
 ) error {
@@ -294,7 +295,7 @@ func (h *hybridHashJoin) forEachRecord(
 		} else if err != nil {
 			return err
 		}
-		joinValue := record[joinIndex]
+		joinValue := record[joinPosition]
 		err = recordFunc(record, joinType, joinValue)
 		if err != nil {
 			return err
@@ -309,7 +310,8 @@ func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string)
 		return err
 	}
 	inMemoryHashTable := make(map[interface{}][]zdb2.Record)
-	rJoinIndex, rJoinType := zdb2.MustFieldIndexAndType(h.r.TableHeader(), h.rJoinField)
+	rJoinPosition, rJoinType := zdb2.MustFieldPositionAndType(
+		h.r.TableHeader(), h.rJoinField)
 	rRecordFunc := func(
 		rRecord zdb2.Record,
 		rJoinType zdb2.Type,
@@ -318,7 +320,7 @@ func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string)
 		inMemoryHashTable[rJoinValue] = append(inMemoryHashTable[rJoinValue], rRecord)
 		return nil
 	}
-	err = h.forEachRecord(rScan, rJoinIndex, rJoinType, rRecordFunc)
+	err = h.forEachRecord(rScan, rJoinPosition, rJoinType, rRecordFunc)
 	if err != nil {
 		return err
 	}
@@ -329,7 +331,8 @@ func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string)
 	if err != nil {
 		return err
 	}
-	sJoinIndex, sJoinType := zdb2.MustFieldIndexAndType(h.s.TableHeader(), h.sJoinField)
+	sJoinPosition, sJoinType := zdb2.MustFieldPositionAndType(
+		h.s.TableHeader(), h.sJoinField)
 	sRecordFunc := func(
 		sRecord zdb2.Record,
 		sJoinType zdb2.Type,
@@ -340,7 +343,7 @@ func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string)
 		}
 		return nil
 	}
-	return h.forEachRecord(sScan, sJoinIndex, sJoinType, sRecordFunc)
+	return h.forEachRecord(sScan, sJoinPosition, sJoinType, sRecordFunc)
 }
 
 func (h *hybridHashJoin) TableHeader() *zdb2.TableHeader {

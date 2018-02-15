@@ -1,12 +1,11 @@
-package encoding
+package executor
 
 import (
 	"io"
 	"os"
 
-	. "gopkg.in/check.v1"
-
 	"github.com/robot-dreams/zdb2"
+	. "gopkg.in/check.v1"
 )
 
 type CSVScanSuite struct{}

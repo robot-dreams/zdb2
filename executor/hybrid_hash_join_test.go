@@ -40,8 +40,8 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 		loginRecords = append(loginRecords, zdb2.Record{ts % 7, ts})
 	}
 	joined, err := NewHybridHashJoin(
-		zdb2.NewInMemoryScan(userTable, userRecords),
-		zdb2.NewInMemoryScan(loginTable, loginRecords),
+		NewInMemoryScan(userTable, userRecords),
+		NewInMemoryScan(loginTable, loginRecords),
 		"id",
 		"user_id",
 		0.3,
@@ -60,8 +60,8 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 	// Make sure we can handle duplicates.
 	userRecords = append(userRecords, userRecords...)
 	joined, err = NewHybridHashJoin(
-		zdb2.NewInMemoryScan(userTable, userRecords),
-		zdb2.NewInMemoryScan(loginTable, loginRecords),
+		NewInMemoryScan(userTable, userRecords),
+		NewInMemoryScan(loginTable, loginRecords),
 		"id",
 		"user_id",
 		0.3,
