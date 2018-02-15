@@ -2,9 +2,33 @@ package zdb2
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dropbox/godropbox/errors"
 )
+
+func Less(type_ Type, v1 interface{}, v2 interface{}) bool {
+	switch type_ {
+	case Int32:
+		return v1.(int32) < v2.(int32)
+	case Float64:
+		return v1.(float64) < v2.(float64)
+	case String:
+		return strings.Compare(v1.(string), v2.(string)) < 0
+	default:
+		panic(errors.Newf("Unsupported type %v", type_))
+	}
+}
+
+// Returns -1 if the field does not appear in the table.
+func (t *TableHeader) FieldPosition(fieldName string) int {
+	for i, field := range t.Fields {
+		if field.Name == fieldName {
+			return i
+		}
+	}
+	return -1
+}
 
 func JoinedRecord(r1, r2 Record) Record {
 	result := make(Record, 0, len(r1)+len(r2))

@@ -40,3 +40,16 @@ func (s *UtilsSuite) TestJoinedHeader(c *C) {
 			},
 		})
 }
+
+func (s *UtilsSuite) TestFieldPosition(c *C) {
+	t := &TableHeader{
+		Name: "users",
+		Fields: []*Field{
+			{"id", Int32},
+			{"name", String},
+		},
+	}
+	c.Assert(t.FieldPosition("id"), Equals, 0)
+	c.Assert(t.FieldPosition("name"), Equals, 1)
+	c.Assert(t.FieldPosition("birthday"), Equals, -1)
+}
