@@ -1,1 +1,14 @@
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+
+# Unignore all dirs
+!*/
+
+# Ignore local benchmarking scripts
 */*_benchmark/*
+
+# Ignore png files (used for profiler output)
+*.png
