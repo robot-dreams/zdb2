@@ -110,11 +110,11 @@ func NewHybridHashJoin(
 		partitionDir:     partitionDir,
 		results:          make(chan *result),
 	}
-	go h.startResultGeneration()
+	go h.start()
 	return h, nil
 }
 
-func (h *hybridHashJoin) startResultGeneration() {
+func (h *hybridHashJoin) start() {
 	defer close(h.results)
 
 	rPartitionPaths, sPartitionPaths, err := h.initialPass()
