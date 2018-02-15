@@ -71,7 +71,11 @@ func (m *merge) Swap(i, j int) {
 func (m *merge) Less(i, j int) bool {
 	v1 := m.inputs[i].record[m.sortFieldPosition]
 	v2 := m.inputs[j].record[m.sortFieldPosition]
-	return zdb2.Less(m.sortFieldType, v1, v2)
+	if m.descending {
+		return zdb2.Less(m.sortFieldType, v2, v1)
+	} else {
+		return zdb2.Less(m.sortFieldType, v1, v2)
+	}
 }
 
 func (m *merge) Push(x interface{}) {
