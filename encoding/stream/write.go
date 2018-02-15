@@ -49,3 +49,17 @@ func (w *write) Close() error {
 	}()
 	return w.c.Close()
 }
+
+func WriteAll(path string, t *zdb2.TableHeader, records []zdb2.Record) error {
+	w, err := NewWrite(path, t)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		err = w.WriteRecord(record)
+		if err != nil {
+			return err
+		}
+	}
+	return w.Close()
+}
