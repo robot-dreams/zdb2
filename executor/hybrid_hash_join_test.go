@@ -50,7 +50,7 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 		record, err := joined.Next()
 		c.Assert(err, IsNil)
 		// id == user_id
-		c.Assert(record[0], Equals, record[2])
+		c.Assert(record[1], Equals, record[2])
 	}
 	_, err = joined.Next()
 	c.Assert(err, Equals, io.EOF)
@@ -72,7 +72,7 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 		record, err := joined.Next()
 		c.Assert(err, IsNil)
 		// id == user_id
-		c.Assert(record[0], Equals, record[2])
+		c.Assert(record[1], Equals, record[2])
 	}
 	_, err = joined.Next()
 	c.Assert(err, Equals, io.EOF)

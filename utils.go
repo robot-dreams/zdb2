@@ -7,7 +7,7 @@ import (
 )
 
 func JoinedRecord(r1, r2 Record) Record {
-	result := make(Record, len(r1)+len(r2))
+	result := make(Record, 0, len(r1)+len(r2))
 	result = append(result, r1...)
 	result = append(result, r2...)
 	return result
