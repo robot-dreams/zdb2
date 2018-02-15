@@ -30,7 +30,7 @@ func (s *UtilsSuite) TestJoinedHeader(c *C) {
 		joined,
 		DeepEquals,
 		&TableHeader{
-			Name: "(users.id = logins.user_id)",
+			Name: "join(users.id = logins.user_id)",
 			Fields: []*Field{
 				{"users.id", Int32},
 				{"users.name", String},

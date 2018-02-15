@@ -43,7 +43,7 @@ func JoinedHeader(
 		return nil, errors.Newf("%v does not have field %v", *t2, joinField2)
 	}
 	joinedName := fmt.Sprintf(
-		"(%s.%s = %s.%s)", t1.Name, joinField1, t2.Name, joinField2)
+		"join(%s.%s = %s.%s)", t1.Name, joinField1, t2.Name, joinField2)
 	return &TableHeader{
 		Name:   joinedName,
 		Fields: append(qualifiedFields(t1), qualifiedFields(t2)...),
