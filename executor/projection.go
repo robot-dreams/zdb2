@@ -11,9 +11,9 @@ import (
 // the specified fields.  If a specified field does not appear in the input,
 // then it will not appear in the output either.
 type projection struct {
-	iter                 zdb2.Iterator
-	projectedTableHeader *zdb2.TableHeader
-	fieldPositions       []int
+	iter                  zdb2.Iterator
+	projectionTableHeader *zdb2.TableHeader
+	fieldPositions        []int
 }
 
 var _ zdb2.Iterator = (*projection)(nil)
@@ -32,7 +32,7 @@ func NewProjection(iter zdb2.Iterator, fieldNames []string) *projection {
 	}
 	return &projection{
 		iter: iter,
-		projectedTableHeader: &zdb2.TableHeader{
+		projectionTableHeader: &zdb2.TableHeader{
 			Name:   name,
 			Fields: fields,
 		},
@@ -41,7 +41,7 @@ func NewProjection(iter zdb2.Iterator, fieldNames []string) *projection {
 }
 
 func (p *projection) TableHeader() *zdb2.TableHeader {
-	return p.projectedTableHeader
+	return p.projectionTableHeader
 }
 
 func (p *projection) Next() (zdb2.Record, error) {
