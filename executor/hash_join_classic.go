@@ -37,7 +37,7 @@ func NewHashJoinClassic(
 	if err != nil {
 		return nil, err
 	}
-	c := &hashJoinClassic{
+	h := &hashJoinClassic{
 		r:          r,
 		s:          s,
 		t:          t,
@@ -45,17 +45,17 @@ func NewHashJoinClassic(
 		sJoinField: sJoinField,
 		results:    make(chan *result),
 	}
-	go c.start()
-	return c, nil
+	go h.start()
+	return h, nil
 }
 
-func (c *hashJoinClassic) start() {
-	defer close(c.results)
+func (h *hashJoinClassic) start() {
+	defer close(h.results)
 
 	// Build in-memory hash table over records in r.
 	inMemoryHashTable := make(map[interface{}][]zdb2.Record)
 	rJoinPosition, rJoinType := zdb2.MustFieldPositionAndType(
-		c.r.TableHeader(), c.rJoinField)
+		h.r.TableHeader(), h.rJoinField)
 	rRecordFunc := func(
 		rRecord zdb2.Record,
 		rJoinType zdb2.Type,
@@ -64,27 +64,27 @@ func (c *hashJoinClassic) start() {
 		inMemoryHashTable[rJoinValue] = append(inMemoryHashTable[rJoinValue], rRecord)
 		return nil
 	}
-	err := forEachRecord(c.r, rJoinPosition, rJoinType, rRecordFunc)
+	err := forEachRecord(h.r, rJoinPosition, rJoinType, rRecordFunc)
 	if err != nil {
-		c.results <- &result{nil, err}
+		h.results <- &result{nil, err}
 	}
 
 	// Scan records in s and look for matches.
 	sJoinPosition, sJoinType := zdb2.MustFieldPositionAndType(
-		c.s.TableHeader(), c.sJoinField)
+		h.s.TableHeader(), h.sJoinField)
 	sRecordFunc := func(
 		sRecord zdb2.Record,
 		sJoinType zdb2.Type,
 		sJoinValue interface{},
 	) error {
 		for _, rRecord := range inMemoryHashTable[sJoinValue] {
-			c.results <- &result{zdb2.JoinedRecord(rRecord, sRecord), nil}
+			h.results <- &result{zdb2.JoinedRecord(rRecord, sRecord), nil}
 		}
 		return nil
 	}
-	err = forEachRecord(c.s, sJoinPosition, sJoinType, sRecordFunc)
+	err = forEachRecord(h.s, sJoinPosition, sJoinType, sRecordFunc)
 	if err != nil {
-		c.results <- &result{nil, err}
+		h.results <- &result{nil, err}
 	}
 }
 
