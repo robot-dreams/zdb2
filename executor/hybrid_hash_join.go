@@ -95,9 +95,9 @@ func NewHybridHashJoin(
 	}
 	if numPartitions <= 0 || numPartitions > maxPartitions {
 		return nil, errors.Newf(
-			"numPartitions %d is outside allowed range (0, %d]",
-			numPartitions,
-			maxPartitions)
+			"numPartitions must be in (0, %d]; got %d",
+			maxPartitions,
+			numPartitions)
 	}
 	partitionDir, err := ioutil.TempDir("", "")
 	if err != nil {
