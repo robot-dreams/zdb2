@@ -37,7 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 	movieIDRating := executor.NewProjection(ratings, []string{"movieId", "rating"})
-	byMovieID, err := executor.NewDiskSort(movieIDRating, "movieId", false)
+	byMovieID, err := executor.NewSortOnDisk(movieIDRating, "movieId", false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	byRatingDescending, err := executor.NewDiskSort(averageRating, "average", true)
+	byRatingDescending, err := executor.NewSortOnDisk(averageRating, "average", true)
 	if err != nil {
 		log.Fatal(err)
 	}

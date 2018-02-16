@@ -40,19 +40,19 @@ func (b *byField) Less(i, j int) bool {
 	}
 }
 
-type diskSort struct {
+type sortOnDisk struct {
 	*merge
 	iter         zdb2.Iterator
 	sortedRunDir string
 }
 
-var _ zdb2.Iterator = (*diskSort)(nil)
+var _ zdb2.Iterator = (*sortOnDisk)(nil)
 
-func NewDiskSort(
+func NewSortOnDisk(
 	iter zdb2.Iterator,
 	sortField string,
 	descending bool,
-) (*diskSort, error) {
+) (*sortOnDisk, error) {
 	t := iter.TableHeader()
 	sortFieldPosition, sortFieldType := zdb2.MustFieldPositionAndType(t, sortField)
 	sortedRunDir, err := ioutil.TempDir("", "")
@@ -99,14 +99,14 @@ func NewDiskSort(
 	if err != nil {
 		return nil, err
 	}
-	return &diskSort{
+	return &sortOnDisk{
 		merge:        merge,
 		iter:         iter,
 		sortedRunDir: sortedRunDir,
 	}, nil
 }
 
-func (d *diskSort) Close() error {
+func (d *sortOnDisk) Close() error {
 	err := d.merge.Close()
 	if err != nil {
 		return err

@@ -17,7 +17,7 @@ func checkDiskSort(
 	sortField string,
 	descending bool,
 ) {
-	d, err := NewDiskSort(iter, sortField, descending)
+	d, err := NewSortOnDisk(iter, sortField, descending)
 	c.Assert(err, IsNil)
 	records, err := zdb2.ReadAll(d)
 	c.Assert(err, IsNil)
