@@ -7,17 +7,20 @@ import (
 	"github.com/robot-dreams/zdb2"
 )
 
-type DiskSortSuite struct{}
+type SortSuite struct{}
 
-var _ = Suite(&DiskSortSuite{})
+var _ = Suite(&SortSuite{})
 
-func checkDiskSort(
+type sortConstructor func(zdb2.Iterator, string, bool) (zdb2.Iterator, error)
+
+func checkSort(
 	c *C,
+	newSort sortConstructor,
 	iter zdb2.Iterator,
 	sortField string,
 	descending bool,
 ) {
-	d, err := NewSortOnDisk(iter, sortField, descending)
+	d, err := newSort(iter, sortField, descending)
 	c.Assert(err, IsNil)
 	records, err := zdb2.ReadAll(d)
 	c.Assert(err, IsNil)
@@ -38,48 +41,57 @@ func checkDiskSort(
 	c.Assert(err, IsNil)
 }
 
-func (s *DiskSortSuite) TestDiskSort(c *C) {
+func (s *SortSuite) TestSort(c *C) {
 	// Setting a small inMemorySortLimit lets us actually test the case where
-	// multiple passes are required.
+	// multiple passes are required for sortOnDisk.
 	oldInMemorySortBatchSize := inMemorySortBatchSize
 	inMemorySortBatchSize = 10
 	defer func() {
 		inMemorySortBatchSize = oldInMemorySortBatchSize
 	}()
 
-	t := &zdb2.TableHeader{
-		Name: "movies",
-		Fields: []*zdb2.Field{
-			{"movie", zdb2.String},
-			{"rating", zdb2.Float64},
-			{"year", zdb2.Int32},
+	for _, newSort := range []sortConstructor{
+		func(iter zdb2.Iterator, sortField string, descending bool) (zdb2.Iterator, error) {
+			return NewSortOnDisk(iter, sortField, descending)
 		},
-	}
-	records := []zdb2.Record{
-		{"Leon: The Professional", 4.6, int32(1994)},
-		{"Gattaca", 4.5, int32(1997)},
-		{"Hackers", 3.7, int32(1995)},
-		{"Inside Out", 4.7, int32(2015)},
-	}
-	for _, fieldName := range []string{"movie", "rating", "year"} {
-		for _, descending := range []bool{false, true} {
-			checkDiskSort(c, NewInMemoryScan(t, records), fieldName, descending)
+		func(iter zdb2.Iterator, sortField string, descending bool) (zdb2.Iterator, error) {
+			return NewSortInMemory(iter, sortField, descending)
+		},
+	} {
+		t := &zdb2.TableHeader{
+			Name: "movies",
+			Fields: []*zdb2.Field{
+				{"movie", zdb2.String},
+				{"rating", zdb2.Float64},
+				{"year", zdb2.Int32},
+			},
 		}
-	}
+		records := []zdb2.Record{
+			{"Leon: The Professional", 4.6, int32(1994)},
+			{"Gattaca", 4.5, int32(1997)},
+			{"Hackers", 3.7, int32(1995)},
+			{"Inside Out", 4.7, int32(2015)},
+		}
+		for _, fieldName := range []string{"movie", "rating", "year"} {
+			for _, descending := range []bool{false, true} {
+				checkSort(c, newSort, NewInMemoryScan(t, records), fieldName, descending)
+			}
+		}
 
-	t = &zdb2.TableHeader{
-		Name: "movies",
-		Fields: []*zdb2.Field{
-			{"movieId", zdb2.Int32},
-			{"title", zdb2.String},
-			{"genres", zdb2.String},
-		},
-	}
-	for _, fieldName := range []string{"movieId", "title", "genres"} {
-		for _, descending := range []bool{false, true} {
-			iter, err := NewCSVScan("movies.csv", t)
-			c.Assert(err, IsNil)
-			checkDiskSort(c, iter, fieldName, descending)
+		t = &zdb2.TableHeader{
+			Name: "movies",
+			Fields: []*zdb2.Field{
+				{"movieId", zdb2.Int32},
+				{"title", zdb2.String},
+				{"genres", zdb2.String},
+			},
+		}
+		for _, fieldName := range []string{"movieId", "title", "genres"} {
+			for _, descending := range []bool{false, true} {
+				iter, err := NewCSVScan("movies.csv", t)
+				c.Assert(err, IsNil)
+				checkSort(c, newSort, iter, fieldName, descending)
+			}
 		}
 	}
 }

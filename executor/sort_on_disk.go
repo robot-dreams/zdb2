@@ -13,33 +13,6 @@ import (
 
 var inMemorySortBatchSize = 100000
 
-type byField struct {
-	sortFieldPosition int
-	sortFieldType     zdb2.Type
-	descending        bool
-	records           []zdb2.Record
-}
-
-var _ sort.Interface = (*byField)(nil)
-
-func (b *byField) Len() int {
-	return len(b.records)
-}
-
-func (b *byField) Swap(i, j int) {
-	b.records[i], b.records[j] = b.records[j], b.records[i]
-}
-
-func (b *byField) Less(i, j int) bool {
-	v1 := b.records[i][b.sortFieldPosition]
-	v2 := b.records[j][b.sortFieldPosition]
-	if b.descending {
-		return zdb2.Less(b.sortFieldType, v2, v1)
-	} else {
-		return zdb2.Less(b.sortFieldType, v1, v2)
-	}
-}
-
 type sortOnDisk struct {
 	*merge
 	iter         zdb2.Iterator
@@ -106,14 +79,14 @@ func NewSortOnDisk(
 	}, nil
 }
 
-func (d *sortOnDisk) Close() error {
-	err := d.merge.Close()
+func (s *sortOnDisk) Close() error {
+	err := s.merge.Close()
 	if err != nil {
 		return err
 	}
-	err = d.iter.Close()
+	err = s.iter.Close()
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(d.sortedRunDir)
+	return os.RemoveAll(s.sortedRunDir)
 }
