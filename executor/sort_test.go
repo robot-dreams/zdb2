@@ -88,7 +88,7 @@ func (s *SortSuite) TestSort(c *C) {
 		}
 		for _, fieldName := range []string{"movieId", "title", "genres"} {
 			for _, descending := range []bool{false, true} {
-				iter, err := NewCSVScan("movies.csv", t)
+				iter, err := NewCSVScan("test_data/movies.csv", t)
 				c.Assert(err, IsNil)
 				checkSort(c, newSort, iter, fieldName, descending)
 			}
