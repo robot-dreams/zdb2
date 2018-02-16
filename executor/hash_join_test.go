@@ -7,11 +7,16 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-type HybridHashJoinSuite struct{}
+type HashJoinSuite struct{}
 
-var _ = Suite(&HybridHashJoinSuite{})
+var _ = Suite(&HashJoinSuite{})
 
-func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
+type hashJoinConstructor func(
+	r, s zdb2.Iterator,
+	rJoinField, sJoinField string,
+) (zdb2.Iterator, error)
+
+func runHashJoinTest(c *C, newHashJoin hashJoinConstructor) {
 	userTable := &zdb2.TableHeader{
 		Name: "user",
 		Fields: []*zdb2.Field{
@@ -39,14 +44,11 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 	for ts := int32(0); ts < int32(100); ts++ {
 		loginRecords = append(loginRecords, zdb2.Record{ts % 7, ts})
 	}
-	joined, err := NewHybridHashJoin(
+	joined, err := newHashJoin(
 		NewInMemoryScan(userTable, userRecords),
 		NewInMemoryScan(loginTable, loginRecords),
 		"id",
-		"user_id",
-		true,
-		0.3,
-		3)
+		"user_id")
 	for i := 0; i < len(loginRecords); i++ {
 		record, err := joined.Next()
 		c.Assert(err, IsNil)
@@ -60,14 +62,11 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 
 	// Make sure we can handle duplicates.
 	userRecords = append(userRecords, userRecords...)
-	joined, err = NewHybridHashJoin(
+	joined, err = newHashJoin(
 		NewInMemoryScan(userTable, userRecords),
 		NewInMemoryScan(loginTable, loginRecords),
 		"id",
-		"user_id",
-		true,
-		0.3,
-		3)
+		"user_id")
 	// There should be 2x as many records now, since each login record
 	// joins with two user records.
 	for i := 0; i < 2*len(loginRecords); i++ {
@@ -80,4 +79,17 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 	c.Assert(err, Equals, io.EOF)
 	err = joined.Close()
 	c.Assert(err, IsNil)
+}
+
+func (s *HashJoinSuite) TestHashJoin(c *C) {
+	for _, newHashJoin := range []hashJoinConstructor{
+		func(r, s zdb2.Iterator, rJoinField, sJoinField string) (zdb2.Iterator, error) {
+			return NewHashJoinClassic(r, s, rJoinField, sJoinField)
+		},
+		func(r, s zdb2.Iterator, rJoinField, sJoinField string) (zdb2.Iterator, error) {
+			return NewHashJoinHybrid(r, s, rJoinField, sJoinField, true, 0.3, 3)
+		},
+	} {
+		runHashJoinTest(c, newHashJoin)
+	}
 }

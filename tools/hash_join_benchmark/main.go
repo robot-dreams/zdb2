@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	joined, err := executor.NewHybridHashJoin(
+	joined, err := executor.NewHashJoinHybrid(
 		r, s,
 		"timestamp", "timestamp",
 		false,

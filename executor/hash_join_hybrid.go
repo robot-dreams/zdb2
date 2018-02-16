@@ -24,21 +24,14 @@ const (
 	maxPartitions = 1 << 20
 )
 
-// We define a separate result type so that we can use a channel for decoupling
-// result generation from result consumption.
-type result struct {
-	record zdb2.Record
-	err    error
-}
-
-// hybridHashJoin supports EquiJoin using the hybrid strategy described in
+// hashJoinHybrid supports EquiJoin using the hybrid strategy described in
 // section 2.5 of the following reference:
 //
 //     http://www.cs.ucr.edu/~tsotras/cs236/W15/join.pdf
 //
 // Note that the query planner is responsible for choosing appropriate values of
-// inMemoryFraction and numPartitions when instantiating the hybridHashJoin.
-type hybridHashJoin struct {
+// inMemoryFraction and numPartitions when instantiating the hashJoinHybrid.
+type hashJoinHybrid struct {
 	// r and s are Iterators over the two input tables to be joined, where r is
 	// the smaller of the two tables.
 	r zdb2.Iterator
@@ -66,7 +59,7 @@ type hybridHashJoin struct {
 	// immediately using via the in-memory hash table.
 	numPartitions int
 
-	// Location for storing on-disk partitions; we assume that a hybridHashJoin
+	// Location for storing on-disk partitions; we assume that a hashJoinHybrid
 	// instance has exclusive access to its partitionDir.
 	partitionDir string
 
@@ -75,15 +68,15 @@ type hybridHashJoin struct {
 	results chan *result
 }
 
-var _ zdb2.Iterator = (*hybridHashJoin)(nil)
+var _ zdb2.Iterator = (*hashJoinHybrid)(nil)
 
-func NewHybridHashJoin(
+func NewHashJoinHybrid(
 	r, s zdb2.Iterator,
 	rJoinField, sJoinField string,
 	useBloomFilter bool,
 	inMemoryFraction float64,
 	numPartitions int,
-) (*hybridHashJoin, error) {
+) (*hashJoinHybrid, error) {
 	t, err := zdb2.JoinedHeader(
 		r.TableHeader(), s.TableHeader(), rJoinField, sJoinField)
 	if err != nil {
@@ -103,7 +96,7 @@ func NewHybridHashJoin(
 	if err != nil {
 		return nil, err
 	}
-	h := &hybridHashJoin{
+	h := &hashJoinHybrid{
 		r:                r,
 		s:                s,
 		t:                t,
@@ -120,7 +113,7 @@ func NewHybridHashJoin(
 	return h, nil
 }
 
-func (h *hybridHashJoin) start() {
+func (h *hashJoinHybrid) start() {
 	defer close(h.results)
 
 	rPartitionPaths, sPartitionPaths, err := h.initialPass()
@@ -154,7 +147,7 @@ func (h *hybridHashJoin) start() {
 // The returned slices are the full paths to the on-disk partitions of r and s,
 // where the position in the slice indicates the partition number.  Note that
 // the returned slices are both guaranteed to have length h.numPartitions.
-func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
+func (h *hashJoinHybrid) initialPass() ([]string, []string, error) {
 	// If requested, we keep a Bloom filter over the set of join field values in r,
 	// so that during our initial pass over s, we can immediately discard records
 	// which are guaranteed not to join with any records in r.
@@ -206,7 +199,7 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		}
 		return nil
 	}
-	err = h.forEachRecord(h.r, rJoinPosition, rJoinType, rRecordFunc)
+	err = forEachRecord(h.r, rJoinPosition, rJoinType, rRecordFunc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -258,7 +251,7 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		}
 		return nil
 	}
-	err = h.forEachRecord(h.s, sJoinPosition, sJoinType, sRecordFunc)
+	err = forEachRecord(h.s, sJoinPosition, sJoinType, sRecordFunc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -269,7 +262,7 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 	return rPartitionPaths, sPartitionPaths, nil
 }
 
-func (h *hybridHashJoin) partitionPaths(prefix string) []string {
+func (h *hashJoinHybrid) partitionPaths(prefix string) []string {
 	result := make([]string, h.numPartitions)
 	for i := 0; i < h.numPartitions; i++ {
 		result[i] = h.partitionDir + "/" + prefix + "-" + strconv.Itoa(i)
@@ -279,7 +272,7 @@ func (h *hybridHashJoin) partitionPaths(prefix string) []string {
 
 // The result will be in [0, h.numPartitions]; if the result is equal to
 // h.numPartitions then the record belongs to the in-memory "partition".
-func (h *hybridHashJoin) getPartition(
+func (h *hashJoinHybrid) getPartition(
 	inMemoryHashThreshold uint32,
 	serializedValue []byte,
 ) int {
@@ -293,28 +286,7 @@ func (h *hybridHashJoin) getPartition(
 	}
 }
 
-func (h *hybridHashJoin) forEachRecord(
-	iter zdb2.Iterator,
-	joinPosition int,
-	joinType zdb2.Type,
-	recordFunc func(zdb2.Record, zdb2.Type, interface{}) error,
-) error {
-	for {
-		record, err := iter.Next()
-		if err == io.EOF {
-			return nil
-		} else if err != nil {
-			return err
-		}
-		joinValue := record[joinPosition]
-		err = recordFunc(record, joinType, joinValue)
-		if err != nil {
-			return err
-		}
-	}
-}
-
-func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string) error {
+func (h *hashJoinHybrid) processPartition(rPartitionPath, sPartitionPath string) error {
 	// Load all records from the partition of r into an in-memory hash table.
 	rScan, err := stream.NewScan(rPartitionPath)
 	if err != nil {
@@ -331,7 +303,7 @@ func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string)
 		inMemoryHashTable[rJoinValue] = append(inMemoryHashTable[rJoinValue], rRecord)
 		return nil
 	}
-	err = h.forEachRecord(rScan, rJoinPosition, rJoinType, rRecordFunc)
+	err = forEachRecord(rScan, rJoinPosition, rJoinType, rRecordFunc)
 	if err != nil {
 		return err
 	}
@@ -354,14 +326,14 @@ func (h *hybridHashJoin) processPartition(rPartitionPath, sPartitionPath string)
 		}
 		return nil
 	}
-	return h.forEachRecord(sScan, sJoinPosition, sJoinType, sRecordFunc)
+	return forEachRecord(sScan, sJoinPosition, sJoinType, sRecordFunc)
 }
 
-func (h *hybridHashJoin) TableHeader() *zdb2.TableHeader {
+func (h *hashJoinHybrid) TableHeader() *zdb2.TableHeader {
 	return h.t
 }
 
-func (h *hybridHashJoin) Next() (zdb2.Record, error) {
+func (h *hashJoinHybrid) Next() (zdb2.Record, error) {
 	result, ok := <-h.results
 	if !ok {
 		return nil, io.EOF
@@ -369,7 +341,7 @@ func (h *hybridHashJoin) Next() (zdb2.Record, error) {
 	return result.record, result.err
 }
 
-func (h *hybridHashJoin) Close() error {
+func (h *hashJoinHybrid) Close() error {
 	for _, iter := range []zdb2.Iterator{h.r, h.s} {
 		err := iter.Close()
 		if err != nil {
