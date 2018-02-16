@@ -41,6 +41,7 @@ func main() {
 	joined, err := executor.NewHybridHashJoin(
 		r, s,
 		"timestamp", "timestamp",
+		false,
 		0.1,
 		9)
 	if err != nil {

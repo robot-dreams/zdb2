@@ -51,6 +51,10 @@ type hybridHashJoin struct {
 	rJoinField string
 	sJoinField string
 
+	// Whether or not to keep a Bloom filter over records in r during the
+	// initial pass.
+	useBloomFilter bool
+
 	// Fraction of records in r to keep in an in-memory hash table.
 	inMemoryFraction float64
 
@@ -76,6 +80,7 @@ var _ zdb2.Iterator = (*hybridHashJoin)(nil)
 func NewHybridHashJoin(
 	r, s zdb2.Iterator,
 	rJoinField, sJoinField string,
+	useBloomFilter bool,
 	inMemoryFraction float64,
 	numPartitions int,
 ) (*hybridHashJoin, error) {
@@ -104,6 +109,7 @@ func NewHybridHashJoin(
 		t:                t,
 		rJoinField:       rJoinField,
 		sJoinField:       sJoinField,
+		useBloomFilter:   useBloomFilter,
 		inMemoryFraction: inMemoryFraction,
 		hashFunc:         fnv.New32(),
 		numPartitions:    numPartitions,
@@ -149,10 +155,13 @@ func (h *hybridHashJoin) start() {
 // where the position in the slice indicates the partition number.  Note that
 // the returned slices are both guaranteed to have length h.numPartitions.
 func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
-	// We keep a Bloom filter over the set of join field values in r, so that
-	// during our initial pass over s, we can immediately discard records which
-	// are guaranteed not to join with any records in r.
-	bloomFilter := bloom.New(m, k)
+	// If requested, we keep a Bloom filter over the set of join field values in r,
+	// so that during our initial pass over s, we can immediately discard records
+	// which are guaranteed not to join with any records in r.
+	var bloomFilter *bloom.BloomFilter
+	if h.useBloomFilter {
+		bloomFilter = bloom.New(m, k)
+	}
 
 	// During our initial pass over r, if the FNV-1 hash of a record's join
 	// field is <= inMemoryHashThreshold, then we keep that record in the
@@ -178,7 +187,9 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		if err != nil {
 			return err
 		}
-		bloomFilter.Add(rSerializedJoinValue)
+		if bloomFilter != nil {
+			bloomFilter.Add(rSerializedJoinValue)
+		}
 
 		// Send the record to the correct output partition (either one of the
 		// on-disk partitions, or the in-memory hash table).
@@ -224,7 +235,7 @@ func (h *hybridHashJoin) initialPass() ([]string, []string, error) {
 		if err != nil {
 			return err
 		}
-		if !bloomFilter.Test(sSerializedJoinValue) {
+		if bloomFilter != nil && !bloomFilter.Test(sSerializedJoinValue) {
 			return nil
 		}
 

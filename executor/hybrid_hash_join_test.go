@@ -44,6 +44,7 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 		NewInMemoryScan(loginTable, loginRecords),
 		"id",
 		"user_id",
+		true,
 		0.3,
 		3)
 	for i := 0; i < len(loginRecords); i++ {
@@ -64,6 +65,7 @@ func (s *HybridHashJoinSuite) TestHybridHashJoin(c *C) {
 		NewInMemoryScan(loginTable, loginRecords),
 		"id",
 		"user_id",
+		true,
 		0.3,
 		3)
 	// There should be 2x as many records now, since each login record
