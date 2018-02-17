@@ -45,7 +45,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	byRatingDescending, err := executor.NewSortOnDisk(averageRating, "average", true)
+	byRatingDescending, err := executor.NewSortInMemory(averageRating, "average", true)
 	if err != nil {
 		log.Fatal(err)
 	}

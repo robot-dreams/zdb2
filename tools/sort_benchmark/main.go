@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	diskSort, err := executor.NewSortOnDisk(csvScan, "rating", true)
+	diskSort, err := executor.NewSortInMemory(csvScan, "rating", true)
 	if err != nil {
 		log.Fatal(err)
 	}
