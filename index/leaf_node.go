@@ -208,6 +208,21 @@ func (ln *leafNode) findEqual(key int32) (Iterator, error) {
 	}, nil
 }
 
+func (ln *leafNode) findGreaterEqual(key int32) (Iterator, error) {
+	position := ln.findSmallestIndexWithGreaterEqualKey(key)
+	if position == len(ln.sortedEntries) {
+		next, err := ln.nextLeafNode()
+		if err != nil {
+			return nil, err
+		}
+		return next.findGreaterEqual(key)
+	}
+	return &leafNodeIterator{
+		ln:       ln,
+		position: position,
+	}, nil
+}
+
 type leafNodeIterator struct {
 	ln             *leafNode
 	position       int
@@ -224,7 +239,7 @@ func (iter *leafNodeIterator) Next() (Entry, error) {
 		iter.ln = ln
 	}
 	entry := iter.ln.sortedEntries[iter.position]
-	if !iter.entryPredicate(entry) {
+	if iter.entryPredicate != nil && !iter.entryPredicate(entry) {
 		return Entry{}, io.EOF
 	} else {
 		iter.position++

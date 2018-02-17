@@ -89,6 +89,10 @@ func (b *bPlusTree) FindEqual(key int32) (Iterator, error) {
 	return b.root.findEqual(key)
 }
 
+func (b *bPlusTree) FindGreaterEqual(key int32) (Iterator, error) {
+	return b.root.findGreaterEqual(key)
+}
+
 func (b *bPlusTree) Close() error {
 	err := b.root.flush()
 	if err != nil {

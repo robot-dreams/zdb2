@@ -174,3 +174,11 @@ func (in *internalNode) findEqual(key int32) (Iterator, error) {
 	}
 	return childNode.findEqual(key)
 }
+
+func (in *internalNode) findGreaterEqual(key int32) (Iterator, error) {
+	childNode, err := in.childNodeForKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return childNode.findGreaterEqual(key)
+}

@@ -74,6 +74,20 @@ func (s *BPlusTreeSuite) TestBPlusTree(c *C) {
 		checkIterator(c, iter, nil)
 	}
 
+	// Use FindGreaterEqual to iterate through the second half of the entries.
+	start := numKeys / 2
+	iter, err := tree.FindGreaterEqual(int32(start) * d)
+	c.Assert(err, IsNil)
+	var expectedEntries []Entry
+	for i := start; i < numKeys; i++ {
+		for j := 0; j < numEntriesPerKey; j++ {
+			expectedEntries = append(
+				expectedEntries,
+				expectedEntry(int32(i)*d, j))
+		}
+	}
+	checkIterator(c, iter, expectedEntries)
+
 	err = tree.Close()
 	c.Assert(err, IsNil)
 }
