@@ -32,9 +32,15 @@ func (ln *leafNode) unmarshal(buf *bytes.Reader) error {
 	}
 	ln.sortedEntries = make([]Entry, numEntries)
 	for i := 0; i < int(numEntries); i++ {
-		err := binary.Read(buf, byteOrder, &ln.sortedEntries[i])
-		if err != nil {
-			return err
+		for _, value := range []interface{}{
+			&ln.sortedEntries[i].Key,
+			&ln.sortedEntries[i].RID.PageID,
+			&ln.sortedEntries[i].RID.SlotID,
+		} {
+			err := binary.Read(buf, byteOrder, value)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return binary.Read(buf, byteOrder, &ln.duplicateOverflow)
@@ -52,8 +58,9 @@ func (ln *leafNode) marshal() []byte {
 		_ = binary.Write(buf, byteOrder, value)
 	}
 	for _, entry := range ln.sortedEntries {
-		// TODO: Using reflect-based encoding might be too slow.
-		_ = binary.Write(buf, byteOrder, entry)
+		_ = binary.Write(buf, byteOrder, entry.Key)
+		_ = binary.Write(buf, byteOrder, entry.RID.PageID)
+		_ = binary.Write(buf, byteOrder, entry.RID.SlotID)
 	}
 	_ = binary.Write(buf, byteOrder, ln.duplicateOverflow)
 	return buf.Bytes()[:blockSize]

@@ -28,9 +28,14 @@ func (in *internalNode) unmarshal(buf *bytes.Reader) error {
 	}
 	in.sortedRouters = make([]router, numRouters)
 	for i := 0; i < int(numRouters); i++ {
-		err := binary.Read(buf, byteOrder, &in.sortedRouters[i])
-		if err != nil {
-			return err
+		for _, value := range []interface{}{
+			&in.sortedRouters[i].Key,
+			&in.sortedRouters[i].BlockID,
+		} {
+			err := binary.Read(buf, byteOrder, value)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -47,8 +52,8 @@ func (in *internalNode) marshal() []byte {
 		_ = binary.Write(buf, byteOrder, value)
 	}
 	for _, router := range in.sortedRouters {
-		// TODO: Using reflect-based encoding might be too slow.
-		_ = binary.Write(buf, byteOrder, router)
+		_ = binary.Write(buf, byteOrder, router.Key)
+		_ = binary.Write(buf, byteOrder, router.BlockID)
 	}
 	return buf.Bytes()[:blockSize]
 }
