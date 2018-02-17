@@ -10,8 +10,8 @@ import (
 // A router points to a node whose descendents' entries are all greater than or
 // equal to the given key.
 type router struct {
-	Key     int32
-	BlockID int32
+	key     int32
+	blockID int32
 }
 
 type node interface {

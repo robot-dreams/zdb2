@@ -29,8 +29,8 @@ func (in *internalNode) unmarshal(buf *bytes.Reader) error {
 	in.sortedRouters = make([]router, numRouters)
 	for i := 0; i < int(numRouters); i++ {
 		for _, value := range []interface{}{
-			&in.sortedRouters[i].Key,
-			&in.sortedRouters[i].BlockID,
+			&in.sortedRouters[i].key,
+			&in.sortedRouters[i].blockID,
 		} {
 			err := binary.Read(buf, byteOrder, value)
 			if err != nil {
@@ -52,8 +52,8 @@ func (in *internalNode) marshal() []byte {
 		_ = binary.Write(buf, byteOrder, value)
 	}
 	for _, router := range in.sortedRouters {
-		_ = binary.Write(buf, byteOrder, router.Key)
-		_ = binary.Write(buf, byteOrder, router.BlockID)
+		_ = binary.Write(buf, byteOrder, router.key)
+		_ = binary.Write(buf, byteOrder, router.blockID)
 	}
 	return buf.Bytes()[:blockSize]
 }
@@ -90,7 +90,7 @@ func (in *internalNode) split() (*router, error) {
 	newInternalNode := &internalNode{
 		bf:               in.bf,
 		blockID:          newBlockID,
-		underflowBlockID: midpointRouter.BlockID,
+		underflowBlockID: midpointRouter.blockID,
 		sortedRouters:    rSortedRouters,
 	}
 	err = newInternalNode.flush()
@@ -100,8 +100,8 @@ func (in *internalNode) split() (*router, error) {
 
 	// Returned router corresponds to new internal node.
 	return &router{
-		Key:     midpointRouter.Key,
-		BlockID: newBlockID,
+		key:     midpointRouter.key,
+		blockID: newBlockID,
 	}, nil
 }
 
@@ -109,7 +109,7 @@ func (in *internalNode) findSmallestIndexWithGreaterKey(key int32) int {
 	return sort.Search(
 		len(in.sortedRouters),
 		func(i int) bool {
-			return in.sortedRouters[i].Key > key
+			return in.sortedRouters[i].key > key
 		})
 }
 
@@ -122,7 +122,7 @@ func (in *internalNode) childNodeForKey(key int32) (node, error) {
 	if i == 0 {
 		childBlockID = in.underflowBlockID
 	} else {
-		childBlockID = in.sortedRouters[i-1].BlockID
+		childBlockID = in.sortedRouters[i-1].blockID
 	}
 	return readNode(in.bf, childBlockID)
 }
@@ -144,7 +144,7 @@ func (in *internalNode) addEntry(entry Entry) (*router, error) {
 
 	// Add the new router, and split if doing so caused the number of routers to
 	// exceed the per-node maximum.
-	i := in.findSmallestIndexWithGreaterKey(childRouter.Key)
+	i := in.findSmallestIndexWithGreaterKey(childRouter.key)
 	if i == len(in.sortedRouters) {
 		// Just add the new router to the end.
 		in.sortedRouters = append(in.sortedRouters, *childRouter)

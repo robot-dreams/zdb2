@@ -119,8 +119,8 @@ func (ln *leafNode) split() (*router, error) {
 	} else {
 		// Returned router corresponds to new leaf node.
 		return &router{
-			Key:     newLeafNode.sortedEntries[0].Key,
-			BlockID: newBlockID,
+			key:     newLeafNode.sortedEntries[0].Key,
+			blockID: newBlockID,
 		}, nil
 	}
 }
