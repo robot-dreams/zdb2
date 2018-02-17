@@ -2,7 +2,7 @@ package index
 
 type bPlusTree struct {
 	bf   *blockFile
-	root node
+	root *internalNode
 }
 
 func NewBPlusTree(path string) (*bPlusTree, error) {
@@ -10,15 +10,24 @@ func NewBPlusTree(path string) (*bPlusTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	var root node
+	var root *internalNode
 	if bf.numBlocks == 0 {
-		blockID, err := bf.allocateBlock()
+		rootBlockID, err := bf.allocateBlock()
 		if err != nil {
 			return nil, err
 		}
-		root = &leafNode{
+		leafBlockID, err := bf.allocateBlock()
+		if err != nil {
+			return nil, err
+		}
+		root = &internalNode{
+			bf:               bf,
+			blockID:          rootBlockID,
+			underflowBlockID: leafBlockID,
+		}
+		leaf := &leafNode{
 			bf:          bf,
-			blockID:     blockID,
+			blockID:     leafBlockID,
 			prevBlockID: invalidBlockID,
 			nextBlockID: invalidBlockID,
 		}
@@ -26,11 +35,16 @@ func NewBPlusTree(path string) (*bPlusTree, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		root, err = readNode(bf, 0)
+		err = leaf.flush()
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		n, err := readNode(bf, 0)
+		if err != nil {
+			return nil, err
+		}
+		root = n.(*internalNode)
 	}
 	return &bPlusTree{
 		bf:   bf,
