@@ -88,6 +88,12 @@ func (s *BPlusTreeSuite) TestBPlusTree(c *C) {
 	}
 	checkIterator(c, iter, expectedEntries)
 
+	// If the key is greater than anything ever added, then there should be no
+	// entries in the returned iterator.
+	iter, err = tree.FindGreaterEqual(int32(numKeys) * d)
+	c.Assert(err, IsNil)
+	checkIterator(c, iter, nil)
+
 	err = tree.Close()
 	c.Assert(err, IsNil)
 }

@@ -173,6 +173,8 @@ func (ln *leafNode) addEntry(entry Entry) (*router, error) {
 	}
 }
 
+// Returns (nil, io.EOF) if there are no more leaf nodes in the "linked list".
+//
 // Precondition: ln.nextBlockID is either invalidBlockID or the blockID of a
 // valid leaf node.
 func (ln *leafNode) nextLeafNode() (*leafNode, error) {
@@ -212,7 +214,9 @@ func (ln *leafNode) findGreaterEqual(key int32) (Iterator, error) {
 	position := ln.findSmallestIndexWithGreaterEqualKey(key)
 	if position == len(ln.sortedEntries) {
 		next, err := ln.nextLeafNode()
-		if err != nil {
+		if err == io.EOF {
+			return EmptyIterator{}, nil
+		} else if err != nil {
 			return nil, err
 		}
 		return next.findGreaterEqual(key)
