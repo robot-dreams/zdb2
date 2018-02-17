@@ -38,7 +38,6 @@ func (ln *leafNode) unmarshal(buf *bytes.Reader) error {
 		}
 	}
 	return binary.Read(buf, byteOrder, &ln.duplicateOverflow)
-	return nil
 }
 
 func (ln *leafNode) marshal() []byte {
