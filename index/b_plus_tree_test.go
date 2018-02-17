@@ -46,6 +46,8 @@ func (s *BPlusTreeSuite) TestBPlusTree(c *C) {
 	for i := 0; i < numKeys; i++ {
 		keys[int32(i)*d] = struct{}{}
 	}
+	// Reading the keys out of a map randomizes the iteration order each time we
+	// run the test and lets us check more cases.
 	for key := range keys {
 		err = tree.AddEntry(expectedEntry(key))
 		c.Assert(err, IsNil)
