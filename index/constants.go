@@ -10,8 +10,9 @@ const (
 
 	// Leaf nodes
 	leafNodeHeaderSize = 12
+	leafNodeFooterSize = 1
 	entrySize          = 10
-	maxLeafNodeEntries = (blockSize - leafNodeHeaderSize) / entrySize
+	maxLeafNodeEntries = (blockSize - leafNodeHeaderSize - leafNodeFooterSize) / entrySize
 
 	// Internal nodes
 	internalNodeHeaderSize = 8

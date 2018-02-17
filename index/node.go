@@ -28,7 +28,7 @@ type node interface {
 	// be non-nil.
 	addEntry(Entry) (*router, error)
 
-	findEqual(key int32) (Entry, error)
+	findEqual(key int32) (Iterator, error)
 }
 
 func readNode(bf *blockFile, blockID int32) (node, error) {

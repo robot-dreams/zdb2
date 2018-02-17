@@ -8,11 +8,12 @@ import (
 )
 
 type leafNode struct {
-	bf            *blockFile
-	blockID       int32
-	prevBlockID   int32
-	nextBlockID   int32
-	sortedEntries []Entry
+	bf                *blockFile
+	blockID           int32
+	prevBlockID       int32
+	nextBlockID       int32
+	sortedEntries     []Entry
+	duplicateOverflow bool
 }
 
 var _ node = (*leafNode)(nil)
@@ -36,6 +37,7 @@ func (ln *leafNode) unmarshal(buf *bytes.Reader) error {
 			return err
 		}
 	}
+	return binary.Read(buf, byteOrder, &ln.duplicateOverflow)
 	return nil
 }
 
@@ -54,6 +56,7 @@ func (ln *leafNode) marshal() []byte {
 		// TODO: Using reflect-based encoding might be too slow.
 		_ = binary.Write(buf, byteOrder, entry)
 	}
+	_ = binary.Write(buf, byteOrder, ln.duplicateOverflow)
 	return buf.Bytes()[:blockSize]
 }
 
@@ -61,11 +64,12 @@ func (ln *leafNode) flush() error {
 	return ln.bf.writeBlock(ln.marshal(), ln.blockID)
 }
 
-// Splits ln into two leaf nodes; modifies ln in place and returns a router
-// corresponding to the new leaf node.  Both ln and the new leaf node will be
-// flushed to disk before returning.
+// Splits ln into two leaf nodes; ln is modified in place.  If the split
+// happened between two entries with different keys, then a router will be
+// returned corresponding to the new leaf node.  Both ln and the new leaf node
+// will be flushed to disk before returning.
 //
-// Precondition: ln is not empty
+// Precondition: ln is full
 func (ln *leafNode) split() (*router, error) {
 	newBlockID, err := ln.bf.allocateBlock()
 	if err != nil {
@@ -75,32 +79,44 @@ func (ln *leafNode) split() (*router, error) {
 	lSortedEntries := ln.sortedEntries[:midpoint]
 	rSortedEntries := ln.sortedEntries[midpoint:]
 
-	// Update and flush ln.
-	ln.sortedEntries = lSortedEntries
-	ln.nextBlockID = newBlockID
-	err = ln.flush()
-	if err != nil {
-		return nil, err
-	}
-
 	// Create and flush new leaf node.
 	newLeafNode := &leafNode{
-		bf:            ln.bf,
-		blockID:       newBlockID,
-		prevBlockID:   ln.blockID,
-		nextBlockID:   ln.nextBlockID,
-		sortedEntries: rSortedEntries,
+		bf:                ln.bf,
+		blockID:           newBlockID,
+		prevBlockID:       ln.blockID,
+		nextBlockID:       ln.nextBlockID,
+		sortedEntries:     rSortedEntries,
+		duplicateOverflow: ln.duplicateOverflow,
 	}
 	err = newLeafNode.flush()
 	if err != nil {
 		return nil, err
 	}
 
-	// Returned router corresponds to new leaf node.
-	return &router{
-		Key:     newLeafNode.sortedEntries[0].Key,
-		BlockID: newBlockID,
-	}, nil
+	// Update and flush ln.
+	ln.sortedEntries = lSortedEntries
+	ln.nextBlockID = newBlockID
+	lFinalEntry := lSortedEntries[midpoint-1]
+	rFirstEntry := rSortedEntries[0]
+	if lFinalEntry.Key == rFirstEntry.Key {
+		ln.duplicateOverflow = true
+	}
+	err = ln.flush()
+	if err != nil {
+		return nil, err
+	}
+
+	if ln.duplicateOverflow {
+		// If we split between two nodes with the same key, then the parent
+		// shouldn't be updated; thus we don't return a router.
+		return nil, nil
+	} else {
+		// Returned router corresponds to new leaf node.
+		return &router{
+			Key:     newLeafNode.sortedEntries[0].Key,
+			BlockID: newBlockID,
+		}, nil
+	}
 }
 
 func (ln *leafNode) findSmallestIndexWithGreaterEqualKey(key int32) int {
@@ -122,8 +138,16 @@ func (ln *leafNode) findSmallestIndexWithGreaterKey(key int32) int {
 func (ln *leafNode) addEntry(entry Entry) (*router, error) {
 	i := ln.findSmallestIndexWithGreaterKey(entry.Key)
 	if i == len(ln.sortedEntries) {
-		// Just add the new entry to the end.
-		ln.sortedEntries = append(ln.sortedEntries, entry)
+		if ln.duplicateOverflow {
+			next, err := ln.nextLeafNode()
+			if err != nil {
+				return nil, err
+			}
+			return next.addEntry(entry)
+		} else {
+			// Just add the new entry to the end.
+			ln.sortedEntries = append(ln.sortedEntries, entry)
+		}
 	} else {
 		n := len(ln.sortedEntries)
 
@@ -156,15 +180,28 @@ func (ln *leafNode) nextLeafNode() (*leafNode, error) {
 	return result.(*leafNode), nil
 }
 
-func (ln *leafNode) findEqual(key int32) (Entry, error) {
-	i := ln.findSmallestIndexWithGreaterEqualKey(key)
-	if i == len(ln.sortedEntries) {
-		return Entry{}, io.EOF
+func (ln *leafNode) findEqual(key int32) (Iterator, error) {
+	position := ln.findSmallestIndexWithGreaterEqualKey(key)
+	if position == len(ln.sortedEntries) {
+		if ln.duplicateOverflow {
+			next, err := ln.nextLeafNode()
+			if err != nil {
+				return nil, err
+			}
+			return next.findEqual(key)
+		} else {
+			return EmptyIterator{}, nil
+		}
 	}
-	return ln.sortedEntries[i], nil
+	return &leafNodeIterator{
+		ln:       ln,
+		position: position,
+		entryPredicate: func(entry Entry) bool {
+			return entry.Key == key
+		},
+	}, nil
 }
 
-/*
 type leafNodeIterator struct {
 	ln             *leafNode
 	position       int
@@ -180,7 +217,6 @@ func (iter *leafNodeIterator) Next() (Entry, error) {
 		iter.position = 0
 		iter.ln = ln
 	}
-	fmt.Println(iter.position, iter.ln.sortedEntries[iter.position])
 	entry := iter.ln.sortedEntries[iter.position]
 	if !iter.entryPredicate(entry) {
 		return Entry{}, io.EOF
@@ -189,4 +225,3 @@ func (iter *leafNodeIterator) Next() (Entry, error) {
 		return entry, nil
 	}
 }
-*/

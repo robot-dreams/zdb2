@@ -61,7 +61,7 @@ func (in *internalNode) flush() error {
 // returns a router corresponding to the new internal node.  Both the receiver
 // and the new internal node will be flushed to disk before returning.
 //
-// Precondition: the receiver is not empty
+// Precondition: the receiver is full
 func (in *internalNode) split() (*router, error) {
 	newBlockID, err := in.bf.allocateBlock()
 	if err != nil {
@@ -162,10 +162,10 @@ func (in *internalNode) addEntry(entry Entry) (*router, error) {
 	}
 }
 
-func (in *internalNode) findEqual(key int32) (Entry, error) {
+func (in *internalNode) findEqual(key int32) (Iterator, error) {
 	childNode, err := in.childNodeForKey(key)
 	if err != nil {
-		return Entry{}, err
+		return nil, err
 	}
 	return childNode.findEqual(key)
 }

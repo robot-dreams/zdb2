@@ -85,7 +85,7 @@ func (b *bPlusTree) AddEntry(entry Entry) error {
 	return nil
 }
 
-func (b *bPlusTree) FindEqual(key int32) (Entry, error) {
+func (b *bPlusTree) FindEqual(key int32) (Iterator, error) {
 	return b.root.findEqual(key)
 }
 
