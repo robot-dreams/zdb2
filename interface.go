@@ -1,5 +1,7 @@
 package zdb2
 
+const BlockSize = 1 << 16
+
 type Type uint8
 
 const (
