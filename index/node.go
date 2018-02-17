@@ -24,8 +24,8 @@ type node interface {
 	flush() error
 
 	// addEntry will write changes to the block buffer before returning.  If
-	// adding an entry caused the node to split, then the returned router will
-	// be non-nil.
+	// adding an entry requires the node to be updated, then the returned router
+	// will be non-nil.
 	addEntry(Entry) (*router, error)
 
 	findEqual(key int32) (Iterator, error)
