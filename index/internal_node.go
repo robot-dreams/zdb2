@@ -119,14 +119,15 @@ func (in *internalNode) findSmallestIndexWithGreaterKey(key int32) int {
 
 func (in *internalNode) childNodeForKey(key int32) (node, error) {
 	i := in.findSmallestIndexWithGreaterKey(key)
+	return in.childNodeAtIndex(i - 1)
+}
 
-	// The child node we're looking for is immediately to the left of the router
-	// at the index we just found.
+func (in *internalNode) childNodeAtIndex(i int) (node, error) {
 	var childBlockID int32
-	if i == 0 {
+	if i == -1 {
 		childBlockID = in.underflowBlockID
 	} else {
-		childBlockID = in.sortedRouters[i-1].blockID
+		childBlockID = in.sortedRouters[i].blockID
 	}
 	return readNode(in.bf, childBlockID)
 }
