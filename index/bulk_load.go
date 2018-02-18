@@ -1,6 +1,10 @@
 package index
 
-import "github.com/dropbox/godropbox/errors"
+import (
+	"math"
+
+	"github.com/dropbox/godropbox/errors"
+)
 
 func min(a, b int) int {
 	if a <= b {
@@ -10,9 +14,23 @@ func min(a, b int) int {
 	}
 }
 
-func BulkLoadNewBPlusTree(path string, sortedEntries []Entry) (*bPlusTree, error) {
+func BulkLoadNewBPlusTree(
+	path string,
+	sortedEntries []Entry,
+	loadingFactor float64,
+) (*bPlusTree, error) {
 	if len(sortedEntries) == 0 {
 		return nil, errors.New("No entries to bulk load")
+	}
+	if loadingFactor <= 0 || loadingFactor > 1 {
+		return nil, errors.Newf(
+			"Loading factor must be in (0, 1]; got %v",
+			loadingFactor)
+	}
+	if math.Floor(loadingFactor*maxLeafNodeEntries) == 0 {
+		return nil, errors.Newf(
+			"Loading factor %v would result in no entries per leaf node",
+			loadingFactor)
 	}
 	bf, err := newBlockFile(path)
 	if err != nil {
@@ -27,7 +45,10 @@ func BulkLoadNewBPlusTree(path string, sortedEntries []Entry) (*bPlusTree, error
 	if err != nil {
 		return nil, err
 	}
-	leafRouters, err := bulkLoadSequentialLeafNodes(bf, sortedEntries)
+	leafRouters, err := bulkLoadSequentialLeafNodes(
+		bf,
+		sortedEntries,
+		loadingFactor)
 	if err != nil {
 		return nil, err
 	}
@@ -62,17 +83,23 @@ func BulkLoadNewBPlusTree(path string, sortedEntries []Entry) (*bPlusTree, error
 
 // Preconditions:
 // - Aside from the root (at blockID 0), no other nodes have been created
+// - loadingFactor is in (0, 1]
 func bulkLoadSequentialLeafNodes(
 	bf *blockFile,
 	sortedEntries []Entry,
+	loadingFactor float64,
 ) ([]router, error) {
+	numEntriesPerLeafNode := int(math.Floor(loadingFactor * maxLeafNodeEntries))
 	leafRouters := make(
 		[]router,
 		0,
-		len(sortedEntries)/maxLeafNodeEntries)
+		len(sortedEntries)/numEntriesPerLeafNode)
 	prevDuplicateOverflow := false
 	for len(sortedEntries) > 0 {
-		leafNode, err := bulkLoadLeafNode(bf, sortedEntries)
+		leafNode, err := bulkLoadLeafNode(
+			bf,
+			sortedEntries,
+			numEntriesPerLeafNode)
 		if err != nil {
 			return nil, err
 		}
@@ -94,9 +121,11 @@ func bulkLoadSequentialLeafNodes(
 // - Aside from the root (at blockID 0), no internal nodes have been created
 // - All entries in remainingSortedEntries have keys greater than entries from
 //   previous calls to bulkLoadLeafNode
+// - numEntriesPerLeafNode is in [1, maxLeafNodeEntries]
 func bulkLoadLeafNode(
 	bf *blockFile,
 	remainingSortedEntries []Entry,
+	numEntriesPerLeafNode int,
 ) (*leafNode, error) {
 	var blockID int32
 	var prevBlockID int32
@@ -115,13 +144,13 @@ func bulkLoadLeafNode(
 		prevBlockID = blockID - 1
 	}
 
-	if len(remainingSortedEntries) <= maxLeafNodeEntries {
+	if len(remainingSortedEntries) <= numEntriesPerLeafNode {
 		nextBlockID = invalidBlockID
 	} else {
 		nextBlockID = blockID + 1
 	}
 
-	n := min(maxLeafNodeEntries, len(remainingSortedEntries))
+	n := min(numEntriesPerLeafNode, len(remainingSortedEntries))
 	sortedEntries = remainingSortedEntries[:n]
 
 	if len(remainingSortedEntries) <= n {
