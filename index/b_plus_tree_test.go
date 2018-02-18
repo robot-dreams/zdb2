@@ -29,7 +29,7 @@ func checkIterator(c *C, iter Iterator, expected []Entry) {
 
 func (s *BPlusTreeSuite) TestBPlusTree(c *C) {
 	path := c.MkDir() + "/b_plus_tree"
-	tree, err := NewBPlusTree(path)
+	tree, err := OpenBPlusTree(path)
 	c.Assert(err, IsNil)
 	expectedEntry := func(key int32, offset int) Entry {
 		return Entry{

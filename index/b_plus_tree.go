@@ -5,7 +5,7 @@ type bPlusTree struct {
 	root *internalNode
 }
 
-func NewBPlusTree(path string) (*bPlusTree, error) {
+func OpenBPlusTree(path string) (*bPlusTree, error) {
 	bf, err := newBlockFile(path)
 	if err != nil {
 		return nil, err
