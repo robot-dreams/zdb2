@@ -70,7 +70,7 @@ func (in *internalNode) flush() error {
 // and the new internal node will be flushed to disk before returning.
 //
 // Precondition: the receiver is full
-func (in *internalNode) split() (*router, error) {
+func (in *internalNode) splitAndFlush() (*router, error) {
 	newBlockID, err := in.bf.allocateBlock()
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func (in *internalNode) addEntry(entry Entry) (*router, error) {
 		in.sortedRouters[i] = *childRouter
 	}
 	if len(in.sortedRouters) > maxInternalNodeRouters {
-		return in.split()
+		return in.splitAndFlush()
 	} else {
 		return nil, in.flush()
 	}
@@ -192,7 +192,7 @@ func (in *internalNode) bulkLoadHelper(leafRouter router) (*router, error) {
 	appendRouter := func(childRouter router) (*router, error) {
 		in.sortedRouters = append(in.sortedRouters, childRouter)
 		if len(in.sortedRouters) > maxInternalNodeRouters {
-			return in.split()
+			return in.splitAndFlush()
 		} else {
 			return nil, in.flush()
 		}
