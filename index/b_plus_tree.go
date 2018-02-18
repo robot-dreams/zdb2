@@ -54,14 +54,14 @@ func OpenBPlusTree(path string) (*bPlusTree, error) {
 }
 
 func (b *bPlusTree) AddEntry(entry Entry) error {
-	p, err := b.root.addEntry(entry)
+	splitRouter, err := b.root.addEntry(entry)
 	if err != nil {
 		return err
 	}
 	// We always keep the root at block 0, so if the old root was just split,
 	// we move the old root to a new block, create a new root, and write the new
 	// root at block 0.
-	if p != nil {
+	if splitRouter != nil {
 		newBlockID, err := b.bf.allocateBlock()
 		if err != nil {
 			return err
@@ -76,7 +76,7 @@ func (b *bPlusTree) AddEntry(entry Entry) error {
 			blockID:          0,
 			subtreeHeight:    b.root.subtreeHeight + 1,
 			underflowBlockID: newBlockID,
-			sortedRouters:    []router{*p},
+			sortedRouters:    []router{*splitRouter},
 		}
 		err = newRoot.flush()
 		if err != nil {
