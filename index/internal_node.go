@@ -187,3 +187,36 @@ func (in *internalNode) findGreaterEqual(key int32) (Iterator, error) {
 	}
 	return childNode.findGreaterEqual(key)
 }
+
+func (in *internalNode) bulkLoadHelper(leafRouter router) (*router, error) {
+	appendRouter := func(childRouter router) (*router, error) {
+		in.sortedRouters = append(in.sortedRouters, childRouter)
+		if len(in.sortedRouters) > maxInternalNodeRouters {
+			return in.split()
+		} else {
+			return nil, in.flush()
+		}
+	}
+
+	// The base case is when the receiver's children are already leaf nodes.
+	if in.subtreeHeight == 1 {
+		return appendRouter(leafRouter)
+	}
+
+	// Recurse towards the receiver's right-most child.
+	childNode, err := in.childNodeAtIndex(len(in.sortedRouters) - 1)
+	if err != nil {
+		return nil, err
+	}
+	childRouter, err := childNode.(*internalNode).bulkLoadHelper(leafRouter)
+	if err != nil {
+		return nil, err
+	}
+
+	// If adding a router didn't cause the child node to split, then we're done.
+	if childRouter == nil {
+		return nil, nil
+	}
+
+	return appendRouter(*childRouter)
+}
