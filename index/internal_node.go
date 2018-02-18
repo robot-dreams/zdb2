@@ -71,25 +71,40 @@ func (in *internalNode) flush() error {
 //
 // Precondition: the receiver is full
 func (in *internalNode) splitAndFlush() (*router, error) {
-	newBlockID, err := in.bf.allocateBlock()
+	newInternalNode, newRouter, err := in.split()
 	if err != nil {
 		return nil, err
 	}
-	midpoint := len(in.sortedRouters) / 2
-	lSortedRouters := in.sortedRouters[:midpoint]
-	rSortedRouters := in.sortedRouters[midpoint+1:]
-	// Unlike the leaf node case, we directly transfer the midpoint router
-	// upwards (instead of copying it).
-	midpointRouter := in.sortedRouters[midpoint]
-
-	// Update and flush in.
-	in.sortedRouters = lSortedRouters
 	err = in.flush()
 	if err != nil {
 		return nil, err
 	}
+	err = newInternalNode.flush()
+	if err != nil {
+		return nil, err
+	}
+	return newRouter, nil
+}
 
-	// Create and flush new internal node.
+// Splits the receiver into two internal nodes; modifies receiver in place and
+// returns the newly created internal node, together with a router that should
+// be used by the parent node to identify the new internal node.
+//
+// Precondition: the receiver is full
+func (in *internalNode) split() (*internalNode, *router, error) {
+	newBlockID, err := in.bf.allocateBlock()
+	if err != nil {
+		return nil, nil, err
+	}
+	midpoint := len(in.sortedRouters) / 2
+	midpointRouter := in.sortedRouters[midpoint]
+	lSortedRouters := in.sortedRouters[:midpoint]
+	rSortedRouters := in.sortedRouters[midpoint+1:]
+
+	// Modify the receiver in place.
+	in.sortedRouters = lSortedRouters
+
+	// Create the new internal node.
 	newInternalNode := &internalNode{
 		bf:               in.bf,
 		blockID:          newBlockID,
@@ -97,16 +112,16 @@ func (in *internalNode) splitAndFlush() (*router, error) {
 		underflowBlockID: midpointRouter.blockID,
 		sortedRouters:    rSortedRouters,
 	}
-	err = newInternalNode.flush()
-	if err != nil {
-		return nil, err
-	}
 
-	// Returned router corresponds to new internal node.
-	return &router{
+	// Create a router for the new internal node.
+	newRouter := &router{
+		// Unlike the leaf node case, we directly transfer the key of the
+		// midpoint router upwards (instead of copying it).
 		key:     midpointRouter.key,
 		blockID: newBlockID,
-	}, nil
+	}
+
+	return newInternalNode, newRouter, nil
 }
 
 func (in *internalNode) findSmallestIndexWithGreaterKey(key int32) int {
