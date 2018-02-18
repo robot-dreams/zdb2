@@ -9,6 +9,7 @@ import (
 type internalNode struct {
 	bf               *blockFile
 	blockID          int32
+	subtreeHeight    int32
 	underflowBlockID int32
 	sortedRouters    []router
 }
@@ -19,6 +20,7 @@ func (in *internalNode) unmarshal(buf *bytes.Reader) error {
 	var numRouters uint16
 	for _, value := range []interface{}{
 		&numRouters,
+		&in.subtreeHeight,
 		&in.underflowBlockID,
 	} {
 		err := binary.Read(buf, byteOrder, value)
@@ -46,6 +48,7 @@ func (in *internalNode) marshal() []byte {
 	for _, value := range []interface{}{
 		blockType_InternalNode,
 		uint16(len(in.sortedRouters)),
+		in.subtreeHeight,
 		in.underflowBlockID,
 	} {
 		// err is always nil when writing to a bytes.Buffer.
@@ -90,6 +93,7 @@ func (in *internalNode) split() (*router, error) {
 	newInternalNode := &internalNode{
 		bf:               in.bf,
 		blockID:          newBlockID,
+		subtreeHeight:    in.subtreeHeight,
 		underflowBlockID: midpointRouter.blockID,
 		sortedRouters:    rSortedRouters,
 	}

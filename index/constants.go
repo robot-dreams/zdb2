@@ -15,7 +15,7 @@ const (
 	maxLeafNodeEntries = (blockSize - leafNodeHeaderSize - leafNodeFooterSize) / entrySize
 
 	// Internal nodes
-	internalNodeHeaderSize = 8
+	internalNodeHeaderSize = 12
 	routerSize             = 8
 	maxInternalNodeRouters = (blockSize - internalNodeHeaderSize) / routerSize
 )

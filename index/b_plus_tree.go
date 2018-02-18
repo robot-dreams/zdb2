@@ -23,6 +23,7 @@ func NewBPlusTree(path string) (*bPlusTree, error) {
 		root = &internalNode{
 			bf:               bf,
 			blockID:          rootBlockID,
+			subtreeHeight:    1,
 			underflowBlockID: leafBlockID,
 		}
 		leaf := &leafNode{
@@ -73,6 +74,7 @@ func (b *bPlusTree) AddEntry(entry Entry) error {
 		newRoot := &internalNode{
 			bf:               b.bf,
 			blockID:          0,
+			subtreeHeight:    b.root.subtreeHeight + 1,
 			underflowBlockID: newBlockID,
 			sortedRouters:    []router{*p},
 		}
