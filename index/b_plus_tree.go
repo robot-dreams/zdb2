@@ -58,27 +58,8 @@ func (b *bPlusTree) AddEntry(entry Entry) error {
 	if err != nil {
 		return err
 	}
-	// We always keep the root at block 0, so if the old root was just split,
-	// we move the old root to a new block, create a new root, and write the new
-	// root at block 0.
 	if splitRouter != nil {
-		newBlockID, err := b.bf.allocateBlock()
-		if err != nil {
-			return err
-		}
-		// Note that the node's blockID is not included after marshaling.
-		err = b.bf.writeBlock(b.root.marshal(), newBlockID)
-		if err != nil {
-			return err
-		}
-		newRoot := &internalNode{
-			bf:               b.bf,
-			blockID:          0,
-			subtreeHeight:    b.root.subtreeHeight + 1,
-			underflowBlockID: newBlockID,
-			sortedRouters:    []router{*splitRouter},
-		}
-		err = newRoot.flush()
+		newRoot, err := handleRootSplit(b.bf, b.root, *splitRouter)
 		if err != nil {
 			return err
 		}
