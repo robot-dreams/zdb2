@@ -7,7 +7,7 @@ import (
 	"github.com/robot-dreams/zdb2"
 )
 
-func readField(r io.Reader) (*zdb2.Field, error) {
+func ReadField(r io.Reader) (*zdb2.Field, error) {
 	name, err := zdb2.ReadString(r)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func readField(r io.Reader) (*zdb2.Field, error) {
 	}, nil
 }
 
-func writeField(w io.Writer, f *zdb2.Field) error {
+func WriteField(w io.Writer, f *zdb2.Field) error {
 	err := zdb2.WriteString(w, f.Name)
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func writeField(w io.Writer, f *zdb2.Field) error {
 	return binary.Write(w, zdb2.ByteOrder, uint8(f.Type))
 }
 
-func readTableHeader(r io.Reader) (*zdb2.TableHeader, error) {
+func ReadTableHeader(r io.Reader) (*zdb2.TableHeader, error) {
 	name, err := zdb2.ReadString(r)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func readTableHeader(r io.Reader) (*zdb2.TableHeader, error) {
 	numFields := int(b)
 	fields := make([]*zdb2.Field, numFields)
 	for i := 0; i < numFields; i++ {
-		field, err := readField(r)
+		field, err := ReadField(r)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +56,7 @@ func readTableHeader(r io.Reader) (*zdb2.TableHeader, error) {
 	}, nil
 }
 
-func writeTableHeader(w io.Writer, t *zdb2.TableHeader) error {
+func WriteTableHeader(w io.Writer, t *zdb2.TableHeader) error {
 	err := zdb2.WriteString(w, t.Name)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func writeTableHeader(w io.Writer, t *zdb2.TableHeader) error {
 		return err
 	}
 	for _, field := range t.Fields {
-		err = writeField(w, field)
+		err = WriteField(w, field)
 		if err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func writeTableHeader(w io.Writer, t *zdb2.TableHeader) error {
 	return nil
 }
 
-func readRecord(r io.Reader, t *zdb2.TableHeader) (zdb2.Record, error) {
+func ReadRecord(r io.Reader, t *zdb2.TableHeader) (zdb2.Record, error) {
 	record := make(zdb2.Record, len(t.Fields))
 	for i, fieldHeader := range t.Fields {
 		value, err := zdb2.ReadValue(r, fieldHeader.Type)
@@ -89,7 +89,7 @@ func readRecord(r io.Reader, t *zdb2.TableHeader) (zdb2.Record, error) {
 // Preconditions:
 //     len(record) == len(t.Fields)
 //     record[i] matches t.Fields[i].Type for 0 <= i < len(record)
-func writeRecord(w io.Writer, t *zdb2.TableHeader, record zdb2.Record) error {
+func WriteRecord(w io.Writer, t *zdb2.TableHeader, record zdb2.Record) error {
 	for i, value := range record {
 		err := zdb2.WriteValue(w, t.Fields[i].Type, value)
 		if err != nil {

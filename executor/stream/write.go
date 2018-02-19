@@ -21,7 +21,7 @@ func NewWrite(path string, t *zdb2.TableHeader) (*write, error) {
 		return nil, err
 	}
 	w := bufio.NewWriter(f)
-	err = writeTableHeader(w, t)
+	err = WriteTableHeader(w, t)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func NewWrite(path string, t *zdb2.TableHeader) (*write, error) {
 }
 
 func (w *write) WriteRecord(record zdb2.Record) error {
-	return writeRecord(w.w, w.t, record)
+	return WriteRecord(w.w, w.t, record)
 }
 
 func (w *write) Close() error {
