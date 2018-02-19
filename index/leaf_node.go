@@ -178,7 +178,7 @@ func (ln *leafNode) addEntry(entry Entry) (*router, error) {
 // Precondition: ln.nextBlockID is either invalidBlockID or the blockID of a
 // valid leaf node.
 func (ln *leafNode) nextLeafNode() (*leafNode, error) {
-	if ln.nextBlockID == invalidBlockID {
+	if ln.nextBlockID == InvalidBlockID {
 		return nil, io.EOF
 	}
 	result, err := readNode(ln.bf, ln.nextBlockID)

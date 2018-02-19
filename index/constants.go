@@ -5,8 +5,6 @@ import (
 )
 
 const (
-	invalidBlockID = -1
-
 	// Leaf nodes
 	leafNodeHeaderSize = 12
 	leafNodeFooterSize = 1

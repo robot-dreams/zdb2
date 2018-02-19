@@ -29,8 +29,8 @@ func OpenBPlusTree(path string) (*bPlusTree, error) {
 		leaf := &leafNode{
 			bf:          bf,
 			blockID:     leafBlockID,
-			prevBlockID: invalidBlockID,
-			nextBlockID: invalidBlockID,
+			prevBlockID: InvalidBlockID,
+			nextBlockID: InvalidBlockID,
 		}
 		err = root.flush()
 		if err != nil {

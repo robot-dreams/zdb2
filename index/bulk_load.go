@@ -152,13 +152,13 @@ func bulkLoadLeafNode(
 	}
 
 	if blockID == 1 {
-		prevBlockID = invalidBlockID
+		prevBlockID = InvalidBlockID
 	} else {
 		prevBlockID = blockID - 1
 	}
 
 	if len(remainingSortedEntries) <= numEntriesPerLeafNode {
-		nextBlockID = invalidBlockID
+		nextBlockID = InvalidBlockID
 	} else {
 		nextBlockID = blockID + 1
 	}

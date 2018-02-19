@@ -6,6 +6,8 @@ import (
 	"github.com/dropbox/godropbox/errors"
 )
 
+const InvalidBlockID = -1
+
 type BlockFile struct {
 	File      *os.File
 	BlockSize int
@@ -36,7 +38,7 @@ func (bf *BlockFile) AllocateBlock() (int32, error) {
 	bf.NumBlocks++
 	err := bf.File.Truncate(int64(bf.NumBlocks) * int64(bf.BlockSize))
 	if err != nil {
-		return invalidBlockID, err
+		return InvalidBlockID, err
 	}
 	return blockID, nil
 }
