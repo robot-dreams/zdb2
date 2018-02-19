@@ -1,16 +1,16 @@
 package zdb2
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
+	"io"
 
 	"github.com/dropbox/godropbox/errors"
 )
 
 var ByteOrder = binary.LittleEndian
 
-func ReadValue(r *bufio.Reader, type_ Type) (interface{}, error) {
+func ReadValue(r io.Reader, type_ Type) (interface{}, error) {
 	switch type_ {
 	case Int32:
 		var x int32
@@ -37,7 +37,7 @@ func ReadValue(r *bufio.Reader, type_ Type) (interface{}, error) {
 	}
 }
 
-func ReadString(r *bufio.Reader) (string, error) {
+func ReadString(r io.Reader) (string, error) {
 	var n uint8
 	err := binary.Read(r, ByteOrder, &n)
 	if err != nil {
@@ -73,7 +73,7 @@ func SerializeValue(type_ Type, value interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func WriteValue(w *bufio.Writer, type_ Type, value interface{}) error {
+func WriteValue(w io.Writer, type_ Type, value interface{}) error {
 	switch type_ {
 	case Int32:
 		return binary.Write(w, ByteOrder, value)
@@ -86,11 +86,11 @@ func WriteValue(w *bufio.Writer, type_ Type, value interface{}) error {
 	}
 }
 
-func WriteString(w *bufio.Writer, s string) error {
-	err := w.WriteByte(uint8(len(s)))
+func WriteString(w io.Writer, s string) error {
+	err := binary.Write(w, ByteOrder, uint8(len(s)))
 	if err != nil {
 		return err
 	}
-	_, err = w.WriteString(s)
+	_, err = io.WriteString(w, s)
 	return err
 }

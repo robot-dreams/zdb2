@@ -1,17 +1,19 @@
 package stream
 
 import (
-	"bufio"
+	"encoding/binary"
+	"io"
 
 	"github.com/robot-dreams/zdb2"
 )
 
-func readField(r *bufio.Reader) (*zdb2.Field, error) {
+func readField(r io.Reader) (*zdb2.Field, error) {
 	name, err := zdb2.ReadString(r)
 	if err != nil {
 		return nil, err
 	}
-	b, err := r.ReadByte()
+	var b uint8
+	err = binary.Read(r, zdb2.ByteOrder, &b)
 	if err != nil {
 		return nil, err
 	}
@@ -21,20 +23,21 @@ func readField(r *bufio.Reader) (*zdb2.Field, error) {
 	}, nil
 }
 
-func writeField(w *bufio.Writer, f *zdb2.Field) error {
+func writeField(w io.Writer, f *zdb2.Field) error {
 	err := zdb2.WriteString(w, f.Name)
 	if err != nil {
 		return err
 	}
-	return w.WriteByte(uint8(f.Type))
+	return binary.Write(w, zdb2.ByteOrder, uint8(f.Type))
 }
 
-func readTableHeader(r *bufio.Reader) (*zdb2.TableHeader, error) {
+func readTableHeader(r io.Reader) (*zdb2.TableHeader, error) {
 	name, err := zdb2.ReadString(r)
 	if err != nil {
 		return nil, err
 	}
-	b, err := r.ReadByte()
+	var b uint8
+	err = binary.Read(r, zdb2.ByteOrder, &b)
 	if err != nil {
 		return nil, err
 	}
@@ -53,12 +56,12 @@ func readTableHeader(r *bufio.Reader) (*zdb2.TableHeader, error) {
 	}, nil
 }
 
-func writeTableHeader(w *bufio.Writer, t *zdb2.TableHeader) error {
+func writeTableHeader(w io.Writer, t *zdb2.TableHeader) error {
 	err := zdb2.WriteString(w, t.Name)
 	if err != nil {
 		return err
 	}
-	err = w.WriteByte(uint8(len(t.Fields)))
+	err = binary.Write(w, zdb2.ByteOrder, uint8(len(t.Fields)))
 	if err != nil {
 		return err
 	}
@@ -71,7 +74,7 @@ func writeTableHeader(w *bufio.Writer, t *zdb2.TableHeader) error {
 	return nil
 }
 
-func readRecord(r *bufio.Reader, t *zdb2.TableHeader) (zdb2.Record, error) {
+func readRecord(r io.Reader, t *zdb2.TableHeader) (zdb2.Record, error) {
 	record := make(zdb2.Record, len(t.Fields))
 	for i, fieldHeader := range t.Fields {
 		value, err := zdb2.ReadValue(r, fieldHeader.Type)
@@ -86,7 +89,7 @@ func readRecord(r *bufio.Reader, t *zdb2.TableHeader) (zdb2.Record, error) {
 // Preconditions:
 //     len(record) == len(t.Fields)
 //     record[i] matches t.Fields[i].Type for 0 <= i < len(record)
-func writeRecord(w *bufio.Writer, t *zdb2.TableHeader, record zdb2.Record) error {
+func writeRecord(w io.Writer, t *zdb2.TableHeader, record zdb2.Record) error {
 	for i, value := range record {
 		err := zdb2.WriteValue(w, t.Fields[i].Type, value)
 		if err != nil {
