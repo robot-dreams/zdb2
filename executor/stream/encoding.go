@@ -7,7 +7,7 @@ import (
 )
 
 func readField(r *bufio.Reader) (*zdb2.Field, error) {
-	name, err := zdb2.ReadTerminatedString(r)
+	name, err := zdb2.ReadString(r)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func readField(r *bufio.Reader) (*zdb2.Field, error) {
 }
 
 func writeField(w *bufio.Writer, f *zdb2.Field) error {
-	err := zdb2.WriteTerminatedString(w, f.Name)
+	err := zdb2.WriteString(w, f.Name)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func writeField(w *bufio.Writer, f *zdb2.Field) error {
 }
 
 func readTableHeader(r *bufio.Reader) (*zdb2.TableHeader, error) {
-	name, err := zdb2.ReadTerminatedString(r)
+	name, err := zdb2.ReadString(r)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func readTableHeader(r *bufio.Reader) (*zdb2.TableHeader, error) {
 }
 
 func writeTableHeader(w *bufio.Writer, t *zdb2.TableHeader) error {
-	err := zdb2.WriteTerminatedString(w, t.Name)
+	err := zdb2.WriteString(w, t.Name)
 	if err != nil {
 		return err
 	}
