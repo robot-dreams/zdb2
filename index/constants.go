@@ -6,19 +6,33 @@ import (
 
 const (
 	invalidBlockID = -1
-	blockSize      = 1 << 6
 
 	// Leaf nodes
 	leafNodeHeaderSize = 12
 	leafNodeFooterSize = 1
 	entrySize          = 10
-	maxLeafNodeEntries = (blockSize - leafNodeHeaderSize - leafNodeFooterSize) / entrySize
 
 	// Internal nodes
 	internalNodeHeaderSize = 12
 	routerSize             = 8
-	maxInternalNodeRouters = (blockSize - internalNodeHeaderSize) / routerSize
 )
+
+// Use var instead of const so that tests can modify these values (and check
+// "interesting" cases without taking too long).
+var (
+	blockSize              int = 1 << 6
+	maxLeafNodeEntries     int
+	maxInternalNodeRouters int
+)
+
+func setBlockSize(blockSize int) {
+	maxLeafNodeEntries = (blockSize - leafNodeHeaderSize - leafNodeFooterSize) / entrySize
+	maxInternalNodeRouters = (blockSize - internalNodeHeaderSize) / routerSize
+}
+
+func init() {
+	setBlockSize(blockSize)
+}
 
 type blockType uint16
 

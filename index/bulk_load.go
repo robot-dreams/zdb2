@@ -27,7 +27,7 @@ func BulkLoadNewBPlusTree(
 			"Loading factor must be in (0, 1]; got %v",
 			loadingFactor)
 	}
-	if math.Floor(loadingFactor*maxLeafNodeEntries) == 0 {
+	if math.Floor(loadingFactor*float64(maxLeafNodeEntries)) == 0 {
 		return nil, errors.Newf(
 			"Loading factor %v would result in no entries per leaf node",
 			loadingFactor)
@@ -101,7 +101,8 @@ func bulkLoadSequentialLeafNodes(
 	sortedEntries []Entry,
 	loadingFactor float64,
 ) ([]router, error) {
-	numEntriesPerLeafNode := int(math.Floor(loadingFactor * maxLeafNodeEntries))
+	numEntriesPerLeafNode := int(math.Floor(
+		loadingFactor * float64(maxLeafNodeEntries)))
 	leafRouters := make(
 		[]router,
 		0,

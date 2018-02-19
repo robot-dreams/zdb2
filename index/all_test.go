@@ -9,8 +9,13 @@ import (
 	. "github.com/dropbox/godropbox/gocheck2"
 )
 
-// Initialize gocheck.
 func Test(t *testing.T) {
+	// Use smaller block size to check more interesting cases.
+	oldBlockSize := blockSize
+	setBlockSize(1 << 6)
+	defer setBlockSize(oldBlockSize)
+
+	// Initialize gocheck.
 	TestingT(t)
 }
 
