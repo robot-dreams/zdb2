@@ -20,7 +20,7 @@ const (
 // Use var instead of const so that tests can modify these values (and check
 // "interesting" cases without taking too long).
 var (
-	blockSize              int = 1 << 6
+	blockSize              int = 1 << 16
 	maxLeafNodeEntries     int
 	maxInternalNodeRouters int
 )
