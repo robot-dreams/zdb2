@@ -162,7 +162,7 @@ func WriteTableHeader(w io.Writer, t *TableHeader) error {
 	return nil
 }
 
-func ReadRecord(r io.Reader, t *TableHeader) (Record, error) {
+func (t *TableHeader) ReadRecord(r io.Reader) (Record, error) {
 	record := make(Record, len(t.Fields))
 	for i, fieldHeader := range t.Fields {
 		value, err := ReadValue(r, fieldHeader.Type)
@@ -177,7 +177,7 @@ func ReadRecord(r io.Reader, t *TableHeader) (Record, error) {
 // Preconditions:
 //     len(record) == len(t.Fields)
 //     record[i] matches t.Fields[i].Type for 0 <= i < len(record)
-func WriteRecord(w io.Writer, t *TableHeader, record Record) error {
+func (t *TableHeader) WriteRecord(w io.Writer, record Record) error {
 	for i, value := range record {
 		err := WriteValue(w, t.Fields[i].Type, value)
 		if err != nil {

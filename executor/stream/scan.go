@@ -53,7 +53,7 @@ func NewScan(path string) (*scan, error) {
 func (s *scan) scanRecords() {
 	defer s.wg.Done()
 	for {
-		record, err := zdb2.ReadRecord(s.r, s.t)
+		record, err := s.t.ReadRecord(s.r)
 		if err == io.EOF {
 			close(s.results)
 			return

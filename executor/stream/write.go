@@ -33,7 +33,7 @@ func NewWrite(path string, t *zdb2.TableHeader) (*write, error) {
 }
 
 func (w *write) WriteRecord(record zdb2.Record) error {
-	return zdb2.WriteRecord(w.w, w.t, record)
+	return w.t.WriteRecord(w.w, record)
 }
 
 func (w *write) Close() error {
