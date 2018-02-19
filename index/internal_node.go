@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"sort"
+
+	"github.com/dropbox/godropbox/errors"
 )
 
 type internalNode struct {
@@ -138,13 +140,15 @@ func (in *internalNode) childNodeForKey(key int32) (node, error) {
 }
 
 func (in *internalNode) childNodeAtIndex(i int) (node, error) {
-	var childBlockID int32
+	return readNode(in.bf, in.childBlockIDAtIndex(i))
+}
+
+func (in *internalNode) childBlockIDAtIndex(i int) int32 {
 	if i == -1 {
-		childBlockID = in.underflowBlockID
+		return in.underflowBlockID
 	} else {
-		childBlockID = in.sortedRouters[i].blockID
+		return in.sortedRouters[i].blockID
 	}
-	return readNode(in.bf, childBlockID)
 }
 
 func (in *internalNode) addEntry(entry Entry) (*router, error) {
@@ -203,13 +207,26 @@ func (in *internalNode) findGreaterEqual(key int32) (Iterator, error) {
 	return childNode.findGreaterEqual(key)
 }
 
-func (in *internalNode) bulkLoadHelper(leafRouter router) (*router, error) {
+func (in *internalNode) bulkLoadHelper(
+	leafRouter router,
+	cachedRightmostPath map[int32]*internalNode,
+) (*router, error) {
 	appendRouter := func(childRouter router) (*router, error) {
 		in.sortedRouters = append(in.sortedRouters, childRouter)
 		if len(in.sortedRouters) > maxInternalNodeRouters {
-			return in.splitAndFlush()
+			newInternalNode, newRouter, err := in.split()
+			if err != nil {
+				return nil, err
+			}
+			err = in.flush()
+			if err != nil {
+				return nil, err
+			}
+			delete(cachedRightmostPath, in.blockID)
+			cachedRightmostPath[newInternalNode.blockID] = newInternalNode
+			return newRouter, nil
 		} else {
-			return nil, in.flush()
+			return nil, nil
 		}
 	}
 
@@ -219,11 +236,17 @@ func (in *internalNode) bulkLoadHelper(leafRouter router) (*router, error) {
 	}
 
 	// Recurse towards the receiver's right-most child.
-	childNode, err := in.childNodeAtIndex(len(in.sortedRouters) - 1)
-	if err != nil {
-		return nil, err
+	childBlockID := in.childBlockIDAtIndex(len(in.sortedRouters) - 1)
+	childNode, ok := cachedRightmostPath[childBlockID]
+	if !ok {
+		return nil, errors.Newf(
+			"Right-most childBlockID %d not found in cachedRightmostPath %v",
+			childBlockID,
+			cachedRightmostPath)
 	}
-	childRouter, err := childNode.(*internalNode).bulkLoadHelper(leafRouter)
+	childRouter, err := childNode.bulkLoadHelper(
+		leafRouter,
+		cachedRightmostPath)
 	if err != nil {
 		return nil, err
 	}

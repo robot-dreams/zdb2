@@ -62,8 +62,13 @@ func BulkLoadNewBPlusTree(
 	if err != nil {
 		return nil, err
 	}
+	cachedRightmostPath := map[int32]*internalNode{
+		0: root,
+	}
 	for i := 1; i < len(leafRouters); i++ {
-		splitRouter, err := root.bulkLoadHelper(leafRouters[i])
+		splitRouter, err := root.bulkLoadHelper(
+			leafRouters[i],
+			cachedRightmostPath)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +77,14 @@ func BulkLoadNewBPlusTree(
 			if err != nil {
 				return nil, err
 			}
+			cachedRightmostPath[0] = newRoot
 			root = newRoot
+		}
+	}
+	for _, in := range cachedRightmostPath {
+		err = in.flush()
+		if err != nil {
+			return nil, err
 		}
 	}
 	return &bPlusTree{
