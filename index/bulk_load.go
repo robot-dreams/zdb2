@@ -32,7 +32,7 @@ func BulkLoadNewBPlusTree(
 			"Loading factor %v would result in no entries per leaf node",
 			loadingFactor)
 	}
-	bf, err := NewBlockFile(path)
+	bf, err := NewBlockFile(path, blockSize)
 	if err != nil {
 		return nil, err
 	}

@@ -8,10 +8,11 @@ import (
 
 type BlockFile struct {
 	File      *os.File
+	BlockSize int
 	NumBlocks int32
 }
 
-func NewBlockFile(path string) (*BlockFile, error) {
+func NewBlockFile(path string, blockSize int) (*BlockFile, error) {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
@@ -23,6 +24,7 @@ func NewBlockFile(path string) (*BlockFile, error) {
 	numBlocks := int32(stat.Size() / int64(blockSize))
 	return &BlockFile{
 		File:      f,
+		BlockSize: blockSize,
 		NumBlocks: numBlocks,
 	}, nil
 }
@@ -32,7 +34,7 @@ func NewBlockFile(path string) (*BlockFile, error) {
 func (bf *BlockFile) AllocateBlock() (int32, error) {
 	blockID := bf.NumBlocks
 	bf.NumBlocks++
-	err := bf.File.Truncate(int64(bf.NumBlocks) * int64(blockSize))
+	err := bf.File.Truncate(int64(bf.NumBlocks) * int64(bf.BlockSize))
 	if err != nil {
 		return invalidBlockID, err
 	}
@@ -43,10 +45,10 @@ func (bf *BlockFile) ReadBlock(b []byte, blockID int32) error {
 	if blockID < 0 || blockID >= bf.NumBlocks {
 		return errors.Newf("blockID must be in [0, %d); got %d", bf.NumBlocks, blockID)
 	}
-	if len(b) != blockSize {
-		return errors.Newf("len(b) must be %d; got %d", blockSize, len(b))
+	if len(b) != bf.BlockSize {
+		return errors.Newf("len(b) must be %d; got %d", bf.BlockSize, len(b))
 	}
-	_, err := bf.File.ReadAt(b, int64(blockID)*int64(blockSize))
+	_, err := bf.File.ReadAt(b, int64(blockID)*int64(bf.BlockSize))
 	if err != nil {
 		return err
 	}
@@ -57,10 +59,10 @@ func (bf *BlockFile) WriteBlock(b []byte, blockID int32) error {
 	if blockID < 0 || blockID >= bf.NumBlocks {
 		return errors.Newf("blockID must be in [0, %d); got %d", bf.NumBlocks, blockID)
 	}
-	if len(b) != blockSize {
-		return errors.Newf("len(b) must be %d; got %d", blockSize, len(b))
+	if len(b) != bf.BlockSize {
+		return errors.Newf("len(b) must be %d; got %d", bf.BlockSize, len(b))
 	}
-	_, err := bf.File.WriteAt(b, int64(blockID)*int64(blockSize))
+	_, err := bf.File.WriteAt(b, int64(blockID)*int64(bf.BlockSize))
 	return err
 }
 

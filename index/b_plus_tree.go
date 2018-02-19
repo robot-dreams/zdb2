@@ -6,7 +6,7 @@ type bPlusTree struct {
 }
 
 func OpenBPlusTree(path string) (*bPlusTree, error) {
-	bf, err := NewBlockFile(path)
+	bf, err := NewBlockFile(path, blockSize)
 	if err != nil {
 		return nil, err
 	}
