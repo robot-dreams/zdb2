@@ -33,7 +33,7 @@ func NewScan(path string) (*scan, error) {
 		return nil, err
 	}
 	r := bufio.NewReader(f)
-	t, err := ReadTableHeader(r)
+	t, err := zdb2.ReadTableHeader(r)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func NewScan(path string) (*scan, error) {
 func (s *scan) scanRecords() {
 	defer s.wg.Done()
 	for {
-		record, err := ReadRecord(s.r, s.t)
+		record, err := zdb2.ReadRecord(s.r, s.t)
 		if err == io.EOF {
 			close(s.results)
 			return
