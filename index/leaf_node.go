@@ -5,10 +5,12 @@ import (
 	"encoding/binary"
 	"io"
 	"sort"
+
+	"github.com/robot-dreams/zdb2/block_file"
 )
 
 type leafNode struct {
-	bf                *BlockFile
+	bf                *block_file.BlockFile
 	blockID           int32
 	prevBlockID       int32
 	nextBlockID       int32
@@ -178,7 +180,7 @@ func (ln *leafNode) addEntry(entry Entry) (*router, error) {
 // Precondition: ln.nextBlockID is either invalidBlockID or the blockID of a
 // valid leaf node.
 func (ln *leafNode) nextLeafNode() (*leafNode, error) {
-	if ln.nextBlockID == InvalidBlockID {
+	if ln.nextBlockID == block_file.InvalidBlockID {
 		return nil, io.EOF
 	}
 	result, err := readNode(ln.bf, ln.nextBlockID)

@@ -6,10 +6,11 @@ import (
 	"sort"
 
 	"github.com/dropbox/godropbox/errors"
+	"github.com/robot-dreams/zdb2/block_file"
 )
 
 type internalNode struct {
-	bf               *BlockFile
+	bf               *block_file.BlockFile
 	blockID          int32
 	subtreeHeight    int32
 	underflowBlockID int32

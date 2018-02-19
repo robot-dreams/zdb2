@@ -1,12 +1,16 @@
 package index
 
+import (
+	"github.com/robot-dreams/zdb2/block_file"
+)
+
 type bPlusTree struct {
-	bf   *BlockFile
+	bf   *block_file.BlockFile
 	root *internalNode
 }
 
 func OpenBPlusTree(path string) (*bPlusTree, error) {
-	bf, err := NewBlockFile(path, blockSize)
+	bf, err := block_file.NewBlockFile(path, blockSize)
 	if err != nil {
 		return nil, err
 	}
@@ -29,8 +33,8 @@ func OpenBPlusTree(path string) (*bPlusTree, error) {
 		leaf := &leafNode{
 			bf:          bf,
 			blockID:     leafBlockID,
-			prevBlockID: InvalidBlockID,
-			nextBlockID: InvalidBlockID,
+			prevBlockID: block_file.InvalidBlockID,
+			nextBlockID: block_file.InvalidBlockID,
 		}
 		err = root.flush()
 		if err != nil {

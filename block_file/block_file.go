@@ -1,4 +1,4 @@
-package index
+package block_file
 
 import (
 	"os"

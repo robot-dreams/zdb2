@@ -1,7 +1,9 @@
 package index
 
+import "github.com/robot-dreams/zdb2/block_file"
+
 func handleRootSplit(
-	bf *BlockFile,
+	bf *block_file.BlockFile,
 	root *internalNode,
 	splitRouter router,
 ) (*internalNode, error) {

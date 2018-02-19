@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 
 	"github.com/dropbox/godropbox/errors"
+	"github.com/robot-dreams/zdb2/block_file"
 )
 
 // A router points to a node whose descendents' entries are all greater than or
@@ -33,7 +34,7 @@ type node interface {
 	findGreaterEqual(key int32) (Iterator, error)
 }
 
-func readNode(bf *BlockFile, blockID int32) (node, error) {
+func readNode(bf *block_file.BlockFile, blockID int32) (node, error) {
 	b := make([]byte, blockSize)
 	err := bf.ReadBlock(b, blockID)
 	if err != nil {

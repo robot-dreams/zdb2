@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/dropbox/godropbox/errors"
+	"github.com/robot-dreams/zdb2/block_file"
 )
 
 func min(a, b int) int {
@@ -32,7 +33,7 @@ func BulkLoadNewBPlusTree(
 			"Loading factor %v would result in no entries per leaf node",
 			loadingFactor)
 	}
-	bf, err := NewBlockFile(path, blockSize)
+	bf, err := block_file.NewBlockFile(path, blockSize)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func BulkLoadNewBPlusTree(
 // - Aside from the root (at blockID 0), no other nodes have been created
 // - loadingFactor is in (0, 1]
 func bulkLoadSequentialLeafNodes(
-	bf *BlockFile,
+	bf *block_file.BlockFile,
 	sortedEntries []Entry,
 	loadingFactor float64,
 ) ([]router, error) {
@@ -136,7 +137,7 @@ func bulkLoadSequentialLeafNodes(
 //   previous calls to bulkLoadLeafNode
 // - numEntriesPerLeafNode is in [1, maxLeafNodeEntries]
 func bulkLoadLeafNode(
-	bf *BlockFile,
+	bf *block_file.BlockFile,
 	remainingSortedEntries []Entry,
 	numEntriesPerLeafNode int,
 ) (*leafNode, error) {
@@ -152,13 +153,13 @@ func bulkLoadLeafNode(
 	}
 
 	if blockID == 1 {
-		prevBlockID = InvalidBlockID
+		prevBlockID = block_file.InvalidBlockID
 	} else {
 		prevBlockID = blockID - 1
 	}
 
 	if len(remainingSortedEntries) <= numEntriesPerLeafNode {
-		nextBlockID = InvalidBlockID
+		nextBlockID = block_file.InvalidBlockID
 	} else {
 		nextBlockID = blockID + 1
 	}
