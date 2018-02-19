@@ -33,9 +33,9 @@ type node interface {
 	findGreaterEqual(key int32) (Iterator, error)
 }
 
-func readNode(bf *blockFile, blockID int32) (node, error) {
+func readNode(bf *BlockFile, blockID int32) (node, error) {
 	b := make([]byte, blockSize)
-	err := bf.readBlock(b, blockID)
+	err := bf.ReadBlock(b, blockID)
 	if err != nil {
 		return nil, err
 	}

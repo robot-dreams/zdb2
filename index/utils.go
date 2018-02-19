@@ -1,19 +1,19 @@
 package index
 
 func handleRootSplit(
-	bf *blockFile,
+	bf *BlockFile,
 	root *internalNode,
 	splitRouter router,
 ) (*internalNode, error) {
 	// We always keep the root at block 0, so if the old root was just split,
 	// we move the old root to a new block, create a new root, and write the new
 	// root at block 0.
-	newBlockID, err := bf.allocateBlock()
+	newBlockID, err := bf.AllocateBlock()
 	if err != nil {
 		return nil, err
 	}
 	// Note that the node's blockID is not part of the marshaled representation.
-	err = bf.writeBlock(root.marshal(), newBlockID)
+	err = bf.WriteBlock(root.marshal(), newBlockID)
 	if err != nil {
 		return nil, err
 	}

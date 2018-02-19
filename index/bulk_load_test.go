@@ -28,7 +28,7 @@ func (s *BulkLoadSuite) TestBulkLoad(c *C) {
 
 		// Since we've ordered the loading factors in descending order, the
 		// number of blocks should be nondecreasing.
-		c.Assert(tree.bf.numBlocks >= prevNumBlocks, IsTrue)
-		prevNumBlocks = tree.bf.numBlocks
+		c.Assert(tree.bf.NumBlocks >= prevNumBlocks, IsTrue)
+		prevNumBlocks = tree.bf.NumBlocks
 	}
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type leafNode struct {
-	bf                *blockFile
+	bf                *BlockFile
 	blockID           int32
 	prevBlockID       int32
 	nextBlockID       int32
@@ -67,7 +67,7 @@ func (ln *leafNode) marshal() []byte {
 }
 
 func (ln *leafNode) flush() error {
-	return ln.bf.writeBlock(ln.marshal(), ln.blockID)
+	return ln.bf.WriteBlock(ln.marshal(), ln.blockID)
 }
 
 // Splits ln into two leaf nodes; ln is modified in place.  If the split
@@ -77,7 +77,7 @@ func (ln *leafNode) flush() error {
 //
 // Precondition: ln is full
 func (ln *leafNode) split() (*router, error) {
-	newBlockID, err := ln.bf.allocateBlock()
+	newBlockID, err := ln.bf.AllocateBlock()
 	if err != nil {
 		return nil, err
 	}

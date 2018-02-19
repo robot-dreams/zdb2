@@ -6,12 +6,12 @@ import (
 	"github.com/dropbox/godropbox/errors"
 )
 
-type blockFile struct {
-	f         *os.File
-	numBlocks int32
+type BlockFile struct {
+	File      *os.File
+	NumBlocks int32
 }
 
-func newBlockFile(path string) (*blockFile, error) {
+func NewBlockFile(path string) (*BlockFile, error) {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
@@ -21,49 +21,49 @@ func newBlockFile(path string) (*blockFile, error) {
 		return nil, err
 	}
 	numBlocks := int32(stat.Size() / int64(blockSize))
-	return &blockFile{
-		f:         f,
-		numBlocks: numBlocks,
+	return &BlockFile{
+		File:      f,
+		NumBlocks: numBlocks,
 	}, nil
 }
 
 // Returns blockID of the newly allocated block; it's guaranteed that the next
 // blockID will be the current value of bf.numBlocks.
-func (bf *blockFile) allocateBlock() (int32, error) {
-	blockID := bf.numBlocks
-	bf.numBlocks++
-	err := bf.f.Truncate(int64(bf.numBlocks) * int64(blockSize))
+func (bf *BlockFile) AllocateBlock() (int32, error) {
+	blockID := bf.NumBlocks
+	bf.NumBlocks++
+	err := bf.File.Truncate(int64(bf.NumBlocks) * int64(blockSize))
 	if err != nil {
 		return invalidBlockID, err
 	}
 	return blockID, nil
 }
 
-func (bf *blockFile) readBlock(b []byte, blockID int32) error {
-	if blockID < 0 || blockID >= bf.numBlocks {
-		return errors.Newf("blockID must be in [0, %d); got %d", bf.numBlocks, blockID)
+func (bf *BlockFile) ReadBlock(b []byte, blockID int32) error {
+	if blockID < 0 || blockID >= bf.NumBlocks {
+		return errors.Newf("blockID must be in [0, %d); got %d", bf.NumBlocks, blockID)
 	}
 	if len(b) != blockSize {
 		return errors.Newf("len(b) must be %d; got %d", blockSize, len(b))
 	}
-	_, err := bf.f.ReadAt(b, int64(blockID)*int64(blockSize))
+	_, err := bf.File.ReadAt(b, int64(blockID)*int64(blockSize))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (bf *blockFile) writeBlock(b []byte, blockID int32) error {
-	if blockID < 0 || blockID >= bf.numBlocks {
-		return errors.Newf("blockID must be in [0, %d); got %d", bf.numBlocks, blockID)
+func (bf *BlockFile) WriteBlock(b []byte, blockID int32) error {
+	if blockID < 0 || blockID >= bf.NumBlocks {
+		return errors.Newf("blockID must be in [0, %d); got %d", bf.NumBlocks, blockID)
 	}
 	if len(b) != blockSize {
 		return errors.Newf("len(b) must be %d; got %d", blockSize, len(b))
 	}
-	_, err := bf.f.WriteAt(b, int64(blockID)*int64(blockSize))
+	_, err := bf.File.WriteAt(b, int64(blockID)*int64(blockSize))
 	return err
 }
 
-func (bf *blockFile) close() error {
-	return bf.f.Close()
+func (bf *BlockFile) Close() error {
+	return bf.File.Close()
 }

@@ -9,7 +9,7 @@ import (
 )
 
 type internalNode struct {
-	bf               *blockFile
+	bf               *BlockFile
 	blockID          int32
 	subtreeHeight    int32
 	underflowBlockID int32
@@ -64,7 +64,7 @@ func (in *internalNode) marshal() []byte {
 }
 
 func (in *internalNode) flush() error {
-	return in.bf.writeBlock(in.marshal(), in.blockID)
+	return in.bf.WriteBlock(in.marshal(), in.blockID)
 }
 
 // Splits the receiver into two internal nodes; modifies receiver in place and
@@ -94,7 +94,7 @@ func (in *internalNode) splitAndFlush() (*router, error) {
 //
 // Precondition: the receiver is full
 func (in *internalNode) split() (*internalNode, *router, error) {
-	newBlockID, err := in.bf.allocateBlock()
+	newBlockID, err := in.bf.AllocateBlock()
 	if err != nil {
 		return nil, nil, err
 	}

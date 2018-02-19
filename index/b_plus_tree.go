@@ -1,22 +1,22 @@
 package index
 
 type bPlusTree struct {
-	bf   *blockFile
+	bf   *BlockFile
 	root *internalNode
 }
 
 func OpenBPlusTree(path string) (*bPlusTree, error) {
-	bf, err := newBlockFile(path)
+	bf, err := NewBlockFile(path)
 	if err != nil {
 		return nil, err
 	}
 	var root *internalNode
-	if bf.numBlocks == 0 {
-		rootBlockID, err := bf.allocateBlock()
+	if bf.NumBlocks == 0 {
+		rootBlockID, err := bf.AllocateBlock()
 		if err != nil {
 			return nil, err
 		}
-		leafBlockID, err := bf.allocateBlock()
+		leafBlockID, err := bf.AllocateBlock()
 		if err != nil {
 			return nil, err
 		}
@@ -81,5 +81,5 @@ func (b *bPlusTree) Close() error {
 	if err != nil {
 		return err
 	}
-	return b.bf.close()
+	return b.bf.Close()
 }

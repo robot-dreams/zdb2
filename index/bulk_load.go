@@ -32,16 +32,16 @@ func BulkLoadNewBPlusTree(
 			"Loading factor %v would result in no entries per leaf node",
 			loadingFactor)
 	}
-	bf, err := newBlockFile(path)
+	bf, err := NewBlockFile(path)
 	if err != nil {
 		return nil, err
 	}
-	if bf.numBlocks > 0 {
+	if bf.NumBlocks > 0 {
 		return nil, errors.Newf(
 			"Cannot bulk load into non-empty B+ tree file at %v",
 			path)
 	}
-	rootBlockID, err := bf.allocateBlock()
+	rootBlockID, err := bf.AllocateBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func BulkLoadNewBPlusTree(
 // - Aside from the root (at blockID 0), no other nodes have been created
 // - loadingFactor is in (0, 1]
 func bulkLoadSequentialLeafNodes(
-	bf *blockFile,
+	bf *BlockFile,
 	sortedEntries []Entry,
 	loadingFactor float64,
 ) ([]router, error) {
@@ -136,7 +136,7 @@ func bulkLoadSequentialLeafNodes(
 //   previous calls to bulkLoadLeafNode
 // - numEntriesPerLeafNode is in [1, maxLeafNodeEntries]
 func bulkLoadLeafNode(
-	bf *blockFile,
+	bf *BlockFile,
 	remainingSortedEntries []Entry,
 	numEntriesPerLeafNode int,
 ) (*leafNode, error) {
@@ -146,7 +146,7 @@ func bulkLoadLeafNode(
 	var sortedEntries []Entry
 	var duplicateOverflow bool
 
-	blockID, err := bf.allocateBlock()
+	blockID, err := bf.AllocateBlock()
 	if err != nil {
 		return nil, err
 	}
