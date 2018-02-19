@@ -7,6 +7,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	. "github.com/dropbox/godropbox/gocheck2"
+	"github.com/robot-dreams/zdb2"
 )
 
 func Test(t *testing.T) {
@@ -25,7 +26,7 @@ var keyDelta int32 = 5
 func generateTestEntry(key int32, offset int) Entry {
 	return Entry{
 		Key: key,
-		RID: RecordID{
+		RID: zdb2.RecordID{
 			PageID: int32(offset),
 			SlotID: uint16(offset),
 		},

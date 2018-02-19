@@ -2,16 +2,13 @@ package index
 
 import (
 	"io"
-)
 
-type RecordID struct {
-	PageID int32
-	SlotID uint16
-}
+	"github.com/robot-dreams/zdb2"
+)
 
 type Entry struct {
 	Key int32
-	RID RecordID
+	RID zdb2.RecordID
 }
 
 type Iterator interface {

@@ -36,6 +36,11 @@ func (r1 Record) Equals(r2 Record) bool {
 	return true
 }
 
+type RecordID struct {
+	PageID int32
+	SlotID uint16
+}
+
 type Predicate func(Record) bool
 
 type Iterator interface {
