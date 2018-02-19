@@ -17,7 +17,7 @@ func (e entryShuffle) Len() int      { return len(e) }
 func (e entryShuffle) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
 
 func (s *BPlusTreeSuite) TestBPlusTree(c *C) {
-	path := c.MkDir() + "/b_plus_tree"
+	path := c.MkDir() + "/b_plus_tree_test"
 	tree, err := OpenBPlusTree(path)
 	c.Assert(err, IsNil)
 	numKeys := 100
