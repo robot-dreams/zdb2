@@ -67,14 +67,18 @@ func (hf *heapFile) Insert(record zdb2.Record) (zdb2.RecordID, error) {
 		if ok {
 			return zdb2.RecordID{
 				PageID: hf.lastPage.pageID,
-				SlotID: hf.lastPage.numSlots - 1,
+				SlotID: hf.lastPage.getNumSlots() - 1,
 			}, nil
 		}
 		err = hf.flush()
 		if err != nil {
 			return zdb2.RecordID{}, err
 		}
-		hp, err := newHeapPage(hf.bf, hf.lastPage.t)
+		t, err := hf.lastPage.getTableHeader()
+		if err != nil {
+			return zdb2.RecordID{}, err
+		}
+		hp, err := newHeapPage(hf.bf, t)
 		if err != nil {
 			return zdb2.RecordID{}, err
 		}

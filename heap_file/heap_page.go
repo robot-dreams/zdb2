@@ -10,10 +10,57 @@ import (
 )
 
 type heapPage struct {
-	pageID   int32
-	t        *zdb2.TableHeader
-	numSlots uint16
-	data     [pageSize]byte
+	pageID int32
+	data   []byte
+}
+
+func (hp *heapPage) getTableHeader() (*zdb2.TableHeader, error) {
+	r := bytes.NewReader(hp.data)
+	t, err := zdb2.ReadTableHeader(r)
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func (hp *heapPage) setTableHeader(t *zdb2.TableHeader) (int, error) {
+	var buf bytes.Buffer
+	err := zdb2.WriteTableHeader(&buf, t)
+	if err != nil {
+		return 0, err
+	}
+	b := buf.Bytes()
+	copy(hp.data, b)
+	return len(b), nil
+}
+
+func (hp *heapPage) getUint16(offset int) uint16 {
+	r := bytes.NewReader(hp.data[offset : offset+2])
+	var result uint16
+	_ = binary.Read(r, zdb2.ByteOrder, &result)
+	return result
+}
+
+func (hp *heapPage) setUint16(offset int, value uint16) {
+	var buf bytes.Buffer
+	_ = binary.Write(&buf, zdb2.ByteOrder, value)
+	copy(hp.data[offset:offset+2], buf.Bytes())
+}
+
+func (hp *heapPage) getNextSlotOffset() uint16 {
+	return hp.getUint16(pageSize - 4)
+}
+
+func (hp *heapPage) setNextSlotOffset(nextSlotOffset uint16) {
+	hp.setUint16(pageSize-4, nextSlotOffset)
+}
+
+func (hp *heapPage) getNumSlots() uint16 {
+	return hp.getUint16(pageSize - 2)
+}
+
+func (hp *heapPage) setNumSlots(numSlots uint16) {
+	hp.setUint16(pageSize-2, numSlots)
 }
 
 func newHeapPage(
@@ -24,21 +71,17 @@ func newHeapPage(
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	err = zdb2.WriteTableHeader(&buf, t)
+	data := make([]byte, pageSize)
+	hp := &heapPage{
+		pageID: pageID,
+		data:   data,
+	}
+	n, err := hp.setTableHeader(t)
 	if err != nil {
 		return nil, err
 	}
-	b := buf.Bytes()
-	var data [pageSize]byte
-	copy(data[:len(b)], b)
-	hp := &heapPage{
-		pageID:   pageID,
-		t:        t,
-		numSlots: 0,
-		data:     data,
-	}
-	hp.addEntryToLookupTable(uint16(len(b)))
+	hp.setNextSlotOffset(uint16(n))
+	hp.setNumSlots(0)
 	return hp, nil
 }
 
@@ -46,27 +89,14 @@ func loadHeapPage(
 	bf *block_file.BlockFile,
 	pageID int32,
 ) (*heapPage, error) {
-	var data [pageSize]byte
-	err := bf.ReadBlock(data[:], pageID)
-	if err != nil {
-		return nil, err
-	}
-	r := bytes.NewReader(data[:])
-	t, err := zdb2.ReadTableHeader(r)
-	if err != nil {
-		return nil, err
-	}
-	var numSlots uint16
-	r = bytes.NewReader(data[pageSize-lookupTableFooterWidth:])
-	err = binary.Read(r, zdb2.ByteOrder, &numSlots)
+	data := make([]byte, pageSize)
+	err := bf.ReadBlock(data, pageID)
 	if err != nil {
 		return nil, err
 	}
 	return &heapPage{
-		pageID:   pageID,
-		t:        t,
-		numSlots: numSlots,
-		data:     data,
+		pageID: pageID,
+		data:   data,
 	}, nil
 }
 
@@ -74,39 +104,31 @@ func loadHeapPage(
 // records can be found.  lookupTableOffset returns the offset into the page
 // where this lookup table starts.
 func (hp *heapPage) lookupTableOffset() uint16 {
-	// There are hp.numSlots + 1 entries because we also store the offset of the
-	// next available slot in the lookup table.
-	lookupTableEntriesWidth := lookupTableEntryWidth * (hp.numSlots + 1)
+	lookupTableEntriesWidth := lookupTableEntryWidth * hp.getNumSlots()
 	return pageSize - lookupTableFooterWidth - lookupTableEntriesWidth
 }
 
 // lookupOffset returns the offset into the page where the offset for the
 // record with the given slotID can be found.
 //
-// Precondition: slotID is in [0, numSlots]
+// Precondition: slotID is in [0, numSlots)
 func (hp *heapPage) lookupOffset(slotID uint16) uint16 {
-	return hp.lookupTableOffset() + lookupTableEntryWidth*(hp.numSlots-slotID)
+	n := hp.getNumSlots() - slotID - 1
+	return hp.lookupTableOffset() + n*lookupTableEntryWidth
 }
 
-func (hp *heapPage) addEntryToLookupTable(offset uint16) {
+func (hp *heapPage) extendLookupTable(offset uint16) {
 	var buf bytes.Buffer
 	binary.Write(&buf, zdb2.ByteOrder, offset)
 	i := hp.lookupTableOffset() - lookupTableEntryWidth
 	copy(hp.data[i:i+lookupTableEntryWidth], buf.Bytes())
-}
-
-// Update both hp.numSlots and the encoded version in the footer.
-func (hp *heapPage) incrementNumSlots() {
-	hp.numSlots++
-	var buf bytes.Buffer
-	binary.Write(&buf, zdb2.ByteOrder, hp.numSlots)
-	copy(hp.data[pageSize-lookupTableFooterWidth:], buf.Bytes())
+	hp.setNumSlots(hp.getNumSlots() + 1)
 }
 
 // Returns the offset into hp.data at which the record with the given slotID is
-// stored (if slotID < numSlots), or should be stored (if slotID == numSlots).
+// stored.
 //
-// Precondition: slotID is in [0, numSlots]
+// Precondition: slotID is in [0, numSlots)
 func (hp *heapPage) recordOffset(slotID uint16) uint16 {
 	i := int(hp.lookupOffset(slotID))
 	r := bytes.NewReader(hp.data[i : i+lookupTableEntryWidth])
@@ -116,9 +138,7 @@ func (hp *heapPage) recordOffset(slotID uint16) uint16 {
 }
 
 func (hp *heapPage) freeSpace() uint16 {
-	// Recall that hp.recordOffset(hp.numSlots) gives the offset of the next
-	// available slot (if we're adding a new record to the page).
-	return hp.lookupTableOffset() - hp.recordOffset(hp.numSlots)
+	return hp.lookupTableOffset() - hp.getNextSlotOffset()
 }
 
 // If there was no room for the record in this page, then the return value will
@@ -130,7 +150,11 @@ func (hp *heapPage) insert(record zdb2.Record) (bool, error) {
 	// The heapPage representation includes a "tombstone" byte for each record
 	// to indicate whether it's deleted.
 	_ = binary.Write(&buf, zdb2.ByteOrder, false)
-	err := hp.t.WriteRecord(&buf, record)
+	t, err := hp.getTableHeader()
+	if err != nil {
+		return false, err
+	}
+	err = t.WriteRecord(&buf, record)
 	if err != nil {
 		return false, err
 	}
@@ -140,20 +164,20 @@ func (hp *heapPage) insert(record zdb2.Record) (bool, error) {
 	if hp.freeSpace() < uint16(len(b))+lookupTableEntryWidth {
 		return false, nil
 	}
-	i := int(hp.recordOffset(hp.numSlots))
-	copy(hp.data[i:i+len(b)], b)
-	hp.addEntryToLookupTable(uint16(i + len(b)))
-	hp.incrementNumSlots()
+	nextSlotOffset := hp.getNextSlotOffset()
+	copy(hp.data[nextSlotOffset:], b)
+	hp.extendLookupTable(nextSlotOffset)
+	hp.setNextSlotOffset(nextSlotOffset + uint16(len(b)))
 	return true, nil
 }
 
 // Returns whether the record at the given slotID previously existed (i.e.
 // slotID is in [0, hp.numSlots) and the tombstone wasn't already set).
 func (hp *heapPage) delete(slotID uint16) (bool, error) {
-	if slotID >= hp.numSlots {
+	if slotID >= hp.getNumSlots() {
 		return false, errors.Newf(
 			"Expected slotID in [0, %d); got %d",
-			hp.numSlots,
+			hp.getNumSlots(),
 			slotID)
 	}
 	var buf bytes.Buffer
@@ -165,10 +189,10 @@ func (hp *heapPage) delete(slotID uint16) (bool, error) {
 }
 
 func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
-	if slotID >= hp.numSlots {
+	if slotID >= hp.getNumSlots() {
 		return nil, errors.Newf(
 			"Expected slotID in [0, %d); got %d",
-			hp.numSlots,
+			hp.getNumSlots(),
 			slotID)
 	}
 	i := int(hp.recordOffset(slotID))
@@ -182,5 +206,9 @@ func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
 	if deleted {
 		return nil, nil
 	}
-	return hp.t.ReadRecord(r)
+	t, err := hp.getTableHeader()
+	if err != nil {
+		return nil, err
+	}
+	return t.ReadRecord(r)
 }
