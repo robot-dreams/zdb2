@@ -12,14 +12,21 @@ import (
 type heapPage struct {
 	pageID int32
 	data   []byte
+
+	// We cache these values only as a performance optimization.
+	t *zdb2.TableHeader
 }
 
 func (hp *heapPage) getTableHeader() (*zdb2.TableHeader, error) {
+	if hp.t != nil {
+		return hp.t, nil
+	}
 	r := bytes.NewReader(hp.data)
 	t, err := zdb2.ReadTableHeader(r)
 	if err != nil {
 		return nil, err
 	}
+	hp.t = t
 	return t, nil
 }
 
