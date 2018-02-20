@@ -171,11 +171,9 @@ func (hp *heapPage) insert(record zdb2.Record) (bool, error) {
 	return true, nil
 }
 
-// Returns whether the record at the given slotID previously existed (i.e.
-// slotID is in [0, hp.numSlots) and the tombstone wasn't already set).
-func (hp *heapPage) delete(slotID uint16) (bool, error) {
+func (hp *heapPage) delete(slotID uint16) error {
 	if slotID >= hp.getNumSlots() {
-		return false, errors.Newf(
+		return errors.Newf(
 			"Expected slotID in [0, %d); got %d",
 			hp.getNumSlots(),
 			slotID)
@@ -185,7 +183,7 @@ func (hp *heapPage) delete(slotID uint16) (bool, error) {
 	b := buf.Bytes()
 	i := int(hp.recordOffset(slotID))
 	copy(hp.data[i:i+len(b)], b)
-	return true, nil
+	return nil
 }
 
 func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {

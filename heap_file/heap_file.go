@@ -102,21 +102,17 @@ func (hf *heapFile) loadPage(pageID int32) (*heapPage, error) {
 	return hp, nil
 }
 
-func (hf *heapFile) Delete(recordID zdb2.RecordID) (bool, error) {
+func (hf *heapFile) Delete(recordID zdb2.RecordID) error {
 	hp, err := hf.loadPage(recordID.PageID)
 	if err != nil {
-		return false, err
+		return err
 	}
-	ok, err := hp.delete(recordID.SlotID)
+	err = hp.delete(recordID.SlotID)
 	if err != nil {
-		return false, err
+		return err
 	}
 	// TODO: Can we switch to a lazier flush strategy?
-	err = hf.bf.WriteBlock(hp.data[:], hp.pageID)
-	if err != nil {
-		return false, err
-	}
-	return ok, nil
+	return hf.bf.WriteBlock(hp.data[:], hp.pageID)
 }
 
 func (hf *heapFile) Get(recordID zdb2.RecordID) (zdb2.Record, error) {
