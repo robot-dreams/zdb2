@@ -18,19 +18,6 @@ type heapPage struct {
 	numSlots uint16
 }
 
-func (hp *heapPage) getTableHeader() (*zdb2.TableHeader, error) {
-	if hp.t != nil {
-		return hp.t, nil
-	}
-	r := bytes.NewReader(hp.data)
-	t, err := zdb2.ReadTableHeader(r)
-	if err != nil {
-		return nil, err
-	}
-	hp.t = t
-	return t, nil
-}
-
 func (hp *heapPage) setTableHeader(t *zdb2.TableHeader) (int, error) {
 	var buf bytes.Buffer
 	err := zdb2.WriteTableHeader(&buf, t)
@@ -82,6 +69,7 @@ func newHeapPage(
 	data := make([]byte, pageSize)
 	hp := &heapPage{
 		pageID: pageID,
+		t:      t,
 		data:   data,
 	}
 	n, err := hp.setTableHeader(t)
@@ -102,9 +90,14 @@ func loadHeapPage(
 	if err != nil {
 		return nil, err
 	}
+	t, err := zdb2.ReadTableHeader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
 	hp := &heapPage{
 		pageID: pageID,
 		data:   data,
+		t:      t,
 	}
 	hp.numSlots = hp.getNumSlots()
 	return hp, nil
@@ -160,11 +153,7 @@ func (hp *heapPage) insert(record zdb2.Record) (bool, error) {
 	// The heapPage representation includes a "tombstone" byte for each record
 	// to indicate whether it's deleted.
 	_ = binary.Write(&buf, zdb2.ByteOrder, false)
-	t, err := hp.getTableHeader()
-	if err != nil {
-		return false, err
-	}
-	err = t.WriteRecord(&buf, record)
+	err := hp.t.WriteRecord(&buf, record)
 	if err != nil {
 		return false, err
 	}
@@ -220,11 +209,7 @@ func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
 	if deleted {
 		return nil, nil
 	}
-	t, err := hp.getTableHeader()
-	if err != nil {
-		return nil, err
-	}
-	return t.ReadRecord(r)
+	return hp.t.ReadRecord(r)
 }
 
 func (hp *heapPage) flush() {

@@ -98,11 +98,7 @@ func (hf *heapFile) Insert(record zdb2.Record) (zdb2.RecordID, error) {
 		if err != nil {
 			return zdb2.RecordID{}, err
 		}
-		t, err := hf.lastPage.getTableHeader()
-		if err != nil {
-			return zdb2.RecordID{}, err
-		}
-		hp, err := newHeapPage(hf.bf, t)
+		hp, err := newHeapPage(hf.bf, hf.lastPage.t)
 		if err != nil {
 			return zdb2.RecordID{}, err
 		}

@@ -36,13 +36,9 @@ func NewScan(path string) (*scan, error) {
 	if err != nil {
 		return nil, err
 	}
-	t, err := hp.getTableHeader()
-	if err != nil {
-		return nil, err
-	}
 	s := &scan{
 		bf:         bf,
-		t:          t,
+		t:          hp.t,
 		resultChan: make(chan *result),
 		closed:     false,
 		done:       make(chan struct{}),

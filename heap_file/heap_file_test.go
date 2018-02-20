@@ -40,9 +40,7 @@ func (s *HeapFileSuite) TestCreateAndOpen(c *C) {
 
 	hf, err = OpenHeapFile(path)
 	c.Assert(err, IsNil)
-	t, err := hf.lastPage.getTableHeader()
-	c.Assert(err, IsNil)
-	c.Assert(t, DeepEquals, expectedTableHeader)
+	c.Assert(hf.lastPage.t, DeepEquals, expectedTableHeader)
 	// Calling Close() multiple times is valid.
 	err = hf.Close()
 	c.Assert(err, IsNil)
