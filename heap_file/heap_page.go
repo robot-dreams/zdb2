@@ -187,14 +187,20 @@ func (hp *heapPage) delete(slotID uint16) error {
 }
 
 func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
-	if slotID >= hp.getNumSlots() {
+	numSlots := hp.getNumSlots()
+	if slotID >= numSlots {
 		return nil, errors.Newf(
 			"Expected slotID in [0, %d); got %d",
-			hp.getNumSlots(),
+			numSlots,
 			slotID)
 	}
 	i := int(hp.recordOffset(slotID))
-	j := int(hp.recordOffset(slotID + 1))
+	var j int
+	if slotID == numSlots-1 {
+		j = int(hp.getNextSlotOffset())
+	} else {
+		j = int(hp.recordOffset(slotID + 1))
+	}
 	r := bytes.NewReader(hp.data[i:j])
 	var deleted bool
 	err := binary.Read(r, zdb2.ByteOrder, &deleted)
