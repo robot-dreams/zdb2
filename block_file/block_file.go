@@ -14,7 +14,7 @@ type BlockFile struct {
 	NumBlocks int32
 }
 
-func NewBlockFile(path string, blockSize int) (*BlockFile, error) {
+func OpenBlockFile(path string, blockSize int) (*BlockFile, error) {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err

@@ -17,7 +17,7 @@ type heapFile struct {
 }
 
 func NewHeapFile(path string, t *zdb2.TableHeader) (*heapFile, error) {
-	bf, err := block_file.NewBlockFile(path, pageSize)
+	bf, err := block_file.OpenBlockFile(path, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func NewHeapFile(path string, t *zdb2.TableHeader) (*heapFile, error) {
 }
 
 func OpenHeapFile(path string) (*heapFile, error) {
-	bf, err := block_file.NewBlockFile(path, pageSize)
+	bf, err := block_file.OpenBlockFile(path, pageSize)
 	if err != nil {
 		return nil, err
 	}

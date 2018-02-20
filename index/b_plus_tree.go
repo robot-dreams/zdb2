@@ -10,7 +10,7 @@ type bPlusTree struct {
 }
 
 func OpenBPlusTree(path string) (*bPlusTree, error) {
-	bf, err := block_file.NewBlockFile(path, blockSize)
+	bf, err := block_file.OpenBlockFile(path, blockSize)
 	if err != nil {
 		return nil, err
 	}
