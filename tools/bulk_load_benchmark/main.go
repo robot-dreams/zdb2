@@ -9,6 +9,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 
+	"github.com/robot-dreams/zdb2"
 	"github.com/robot-dreams/zdb2/index"
 )
 
@@ -41,7 +42,7 @@ func main() {
 	generateEntry := func(key int32, offset int) index.Entry {
 		return index.Entry{
 			Key: key,
-			RID: index.RecordID{
+			RID: zdb2.RecordID{
 				PageID: int32(offset),
 				SlotID: uint16(offset),
 			},
