@@ -91,12 +91,14 @@ func (hp *heapPage) lookupOffset(slotID uint16) uint16 {
 func (hp *heapPage) addEntryToLookupTable(offset uint16) {
 	var buf bytes.Buffer
 	binary.Write(&buf, zdb2.ByteOrder, offset)
-	i := hp.lookupTableOffset()
+	i := hp.lookupTableOffset() - lookupTableEntryWidth
 	copy(hp.data[i:i+lookupTableEntryWidth], buf.Bytes())
+}
 
-	// Update both hp.numSlots and the encoded version in the footer.
+// Update both hp.numSlots and the encoded version in the footer.
+func (hp *heapPage) incrementNumSlots() {
 	hp.numSlots++
-	buf.Reset()
+	var buf bytes.Buffer
 	binary.Write(&buf, zdb2.ByteOrder, hp.numSlots)
 	copy(hp.data[pageSize-lookupTableFooterWidth:], buf.Bytes())
 }
@@ -141,6 +143,7 @@ func (hp *heapPage) insert(record zdb2.Record) (bool, error) {
 	i := int(hp.recordOffset(hp.numSlots))
 	copy(hp.data[i:i+len(b)], b)
 	hp.addEntryToLookupTable(uint16(i + len(b)))
+	hp.incrementNumSlots()
 	return true, nil
 }
 
