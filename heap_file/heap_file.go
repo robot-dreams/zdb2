@@ -1,6 +1,8 @@
 package heap_file
 
 import (
+	"io"
+
 	"github.com/dropbox/godropbox/errors"
 	"github.com/robot-dreams/zdb2"
 	"github.com/robot-dreams/zdb2/block_file"
@@ -35,6 +37,28 @@ func NewHeapFile(path string, t *zdb2.TableHeader) (*heapFile, error) {
 		lastPage: hp,
 		closed:   false,
 	}, nil
+}
+
+func BulkLoadNewHeapFile(
+	path string,
+	iter zdb2.Iterator,
+) error {
+	hf, err := NewHeapFile(path, iter.TableHeader())
+	if err != nil {
+		return err
+	}
+	for {
+		record, err := iter.Next()
+		if err == io.EOF {
+			return hf.Close()
+		} else if err != nil {
+			return err
+		}
+		_, err = hf.Insert(record)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func OpenHeapFile(path string) (*heapFile, error) {
