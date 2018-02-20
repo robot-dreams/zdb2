@@ -23,7 +23,7 @@ func (s *DistinctSuite) TestDistinct(c *C) {
 		{"Rob", "Pike", "rob"},
 		{"Robert", "Griesemer", "gri"},
 	}
-	distinct := NewDistinct(NewInMemoryScan(t, input))
+	distinct := NewDistinct(zdb2.NewInMemoryScan(t, input))
 	expected := []zdb2.Record{
 		{"Rob", "Pike", "rob"},
 		{"Robert", "Griesemer", "gri"},

@@ -45,8 +45,8 @@ func runHashJoinTest(c *C, newHashJoin hashJoinConstructor) {
 		loginRecords = append(loginRecords, zdb2.Record{ts % 7, ts})
 	}
 	joined, err := newHashJoin(
-		NewInMemoryScan(userTable, userRecords),
-		NewInMemoryScan(loginTable, loginRecords),
+		zdb2.NewInMemoryScan(userTable, userRecords),
+		zdb2.NewInMemoryScan(loginTable, loginRecords),
 		"id",
 		"user_id")
 	for i := 0; i < len(loginRecords); i++ {
@@ -63,8 +63,8 @@ func runHashJoinTest(c *C, newHashJoin hashJoinConstructor) {
 	// Make sure we can handle duplicates.
 	userRecords = append(userRecords, userRecords...)
 	joined, err = newHashJoin(
-		NewInMemoryScan(userTable, userRecords),
-		NewInMemoryScan(loginTable, loginRecords),
+		zdb2.NewInMemoryScan(userTable, userRecords),
+		zdb2.NewInMemoryScan(loginTable, loginRecords),
 		"id",
 		"user_id")
 	// There should be 2x as many records now, since each login record

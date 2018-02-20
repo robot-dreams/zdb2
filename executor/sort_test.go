@@ -74,7 +74,7 @@ func (s *SortSuite) TestSort(c *C) {
 		}
 		for _, fieldName := range []string{"movie", "rating", "year"} {
 			for _, descending := range []bool{false, true} {
-				checkSort(c, newSort, NewInMemoryScan(t, records), fieldName, descending)
+				checkSort(c, newSort, zdb2.NewInMemoryScan(t, records), fieldName, descending)
 			}
 		}
 

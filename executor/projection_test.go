@@ -24,7 +24,7 @@ func (s *ProjectionSuite) TestProjection(c *C) {
 		{"Robert", "Griesemer", "gri"},
 	}
 	projection := NewProjection(
-		NewInMemoryScan(t, records),
+		zdb2.NewInMemoryScan(t, records),
 		[]string{"first_name", "username"})
 	c.Assert(
 		projection.TableHeader(),

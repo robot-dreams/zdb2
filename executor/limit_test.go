@@ -23,7 +23,7 @@ func (s *LimitSuite) TestLimit(c *C) {
 		{"Ken", "Thompson", "ken"},
 		{"Robert", "Griesemer", "gri"},
 	}
-	limit := NewLimit(NewInMemoryScan(t, records), 2)
+	limit := NewLimit(zdb2.NewInMemoryScan(t, records), 2)
 	expected := []zdb2.Record{
 		{"Rob", "Pike", "rob"},
 		{"Ken", "Thompson", "ken"},
@@ -32,6 +32,6 @@ func (s *LimitSuite) TestLimit(c *C) {
 
 	// If the limit is greater than the number of Records in the input
 	// Iterator, then all elements should be returned.
-	limit = NewLimit(NewInMemoryScan(t, records), 4)
+	limit = NewLimit(zdb2.NewInMemoryScan(t, records), 4)
 	zdb2.CheckIterator(c, limit, records)
 }

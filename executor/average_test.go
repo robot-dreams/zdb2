@@ -28,7 +28,7 @@ func (s *AverageSuite) TestAverage(c *C) {
 		{"Hackers", 3.7, int32(3)},
 		{"Inside Out", 4.7, int32(3)},
 	}
-	average, err := NewAverage(NewInMemoryScan(t, records), "rating", "views")
+	average, err := NewAverage(zdb2.NewInMemoryScan(t, records), "rating", "views")
 	c.Assert(err, IsNil)
 	c.Assert(
 		average.TableHeader(),

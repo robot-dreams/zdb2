@@ -25,14 +25,14 @@ func (s *SelectionSuite) TestSelection(c *C) {
 		{int32(2), "Robert", "Griesemer", "gri"},
 	}
 	selection := NewSelection(
-		NewInMemoryScan(t, records),
+		zdb2.NewInMemoryScan(t, records),
 		zdb2.FieldEquals(t, "last_name", "Thompson"))
 	expected := []zdb2.Record{
 		{int32(1), "Ken", "Thompson", "ken"},
 	}
 	zdb2.CheckIterator(c, selection, expected)
 	selection = NewSelection(
-		NewInMemoryScan(t, records),
+		zdb2.NewInMemoryScan(t, records),
 		zdb2.FieldLess(t, "id", int32(2)))
 	expected = []zdb2.Record{
 		{int32(0), "Rob", "Pike", "rob"},
