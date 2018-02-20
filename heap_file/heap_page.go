@@ -14,8 +14,9 @@ type heapPage struct {
 	data   []byte
 
 	// We cache these values only as a performance optimization.
-	t        *zdb2.TableHeader
-	numSlots uint16
+	t              *zdb2.TableHeader
+	nextSlotOffset uint16
+	numSlots       uint16
 }
 
 func (hp *heapPage) setTableHeader(t *zdb2.TableHeader) (int, error) {
@@ -47,6 +48,7 @@ func (hp *heapPage) getNextSlotOffset() uint16 {
 }
 
 func (hp *heapPage) setNextSlotOffset(nextSlotOffset uint16) {
+	hp.nextSlotOffset = nextSlotOffset
 	hp.setUint16(pageSize-4, nextSlotOffset)
 }
 
@@ -55,6 +57,7 @@ func (hp *heapPage) getNumSlots() uint16 {
 }
 
 func (hp *heapPage) setNumSlots(numSlots uint16) {
+	hp.numSlots = numSlots
 	hp.setUint16(pageSize-2, numSlots)
 }
 
@@ -99,6 +102,7 @@ func loadHeapPage(
 		data:   data,
 		t:      t,
 	}
+	hp.nextSlotOffset = hp.getNextSlotOffset()
 	hp.numSlots = hp.getNumSlots()
 	return hp, nil
 }
@@ -141,7 +145,7 @@ func (hp *heapPage) recordOffset(slotID uint16) uint16 {
 }
 
 func (hp *heapPage) freeSpace() uint16 {
-	return hp.lookupTableOffset() - hp.getNextSlotOffset()
+	return hp.lookupTableOffset() - hp.nextSlotOffset
 }
 
 // If there was no room for the record in this page, then the return value will
@@ -163,10 +167,9 @@ func (hp *heapPage) insert(record zdb2.Record) (bool, error) {
 	if hp.freeSpace() < uint16(len(b))+lookupTableEntryWidth {
 		return false, nil
 	}
-	nextSlotOffset := hp.getNextSlotOffset()
-	copy(hp.data[nextSlotOffset:], b)
-	hp.extendLookupTable(nextSlotOffset)
-	hp.setNextSlotOffset(nextSlotOffset + uint16(len(b)))
+	copy(hp.data[hp.nextSlotOffset:], b)
+	hp.extendLookupTable(hp.nextSlotOffset)
+	hp.nextSlotOffset += uint16(len(b))
 	return true, nil
 }
 
@@ -196,7 +199,7 @@ func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
 	i := int(hp.recordOffset(slotID))
 	var j int
 	if slotID == numSlots-1 {
-		j = int(hp.getNextSlotOffset())
+		j = int(hp.nextSlotOffset)
 	} else {
 		j = int(hp.recordOffset(slotID + 1))
 	}
@@ -213,5 +216,6 @@ func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
 }
 
 func (hp *heapPage) flush() {
+	hp.setNextSlotOffset(hp.nextSlotOffset)
 	hp.setNumSlots(hp.numSlots)
 }
