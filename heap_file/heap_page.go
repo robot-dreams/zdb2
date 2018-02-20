@@ -14,7 +14,8 @@ type heapPage struct {
 	data   []byte
 
 	// We cache these values only as a performance optimization.
-	t *zdb2.TableHeader
+	t        *zdb2.TableHeader
+	numSlots uint16
 }
 
 func (hp *heapPage) getTableHeader() (*zdb2.TableHeader, error) {
@@ -101,17 +102,19 @@ func loadHeapPage(
 	if err != nil {
 		return nil, err
 	}
-	return &heapPage{
+	hp := &heapPage{
 		pageID: pageID,
 		data:   data,
-	}, nil
+	}
+	hp.numSlots = hp.getNumSlots()
+	return hp, nil
 }
 
 // Each page contains a lookup table of offsets into the page where records can
 // be found.  lookupTableOffset returns the offset into the page where this
 // lookup table starts.
 func (hp *heapPage) lookupTableOffset() uint16 {
-	lookupTableEntriesWidth := lookupTableEntryWidth * hp.getNumSlots()
+	lookupTableEntriesWidth := lookupTableEntryWidth * hp.numSlots
 	return pageSize - lookupTableFooterWidth - lookupTableEntriesWidth
 }
 
@@ -120,7 +123,7 @@ func (hp *heapPage) lookupTableOffset() uint16 {
 //
 // Precondition: slotID is in [0, numSlots)
 func (hp *heapPage) lookupOffset(slotID uint16) uint16 {
-	n := hp.getNumSlots() - slotID - 1
+	n := hp.numSlots - slotID - 1
 	return hp.lookupTableOffset() + n*lookupTableEntryWidth
 }
 
@@ -129,7 +132,7 @@ func (hp *heapPage) extendLookupTable(offset uint16) {
 	binary.Write(&buf, zdb2.ByteOrder, offset)
 	i := hp.lookupTableOffset() - lookupTableEntryWidth
 	copy(hp.data[i:i+lookupTableEntryWidth], buf.Bytes())
-	hp.setNumSlots(hp.getNumSlots() + 1)
+	hp.numSlots++
 }
 
 // Returns the offset into hp.data at which the record with the given slotID is
@@ -179,10 +182,10 @@ func (hp *heapPage) insert(record zdb2.Record) (bool, error) {
 }
 
 func (hp *heapPage) delete(slotID uint16) error {
-	if slotID >= hp.getNumSlots() {
+	if slotID >= hp.numSlots {
 		return errors.Newf(
 			"Expected slotID in [0, %d); got %d",
-			hp.getNumSlots(),
+			hp.numSlots,
 			slotID)
 	}
 	var buf bytes.Buffer
@@ -194,7 +197,7 @@ func (hp *heapPage) delete(slotID uint16) error {
 }
 
 func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
-	numSlots := hp.getNumSlots()
+	numSlots := hp.numSlots
 	if slotID >= numSlots {
 		return nil, errors.Newf(
 			"Expected slotID in [0, %d); got %d",
@@ -222,4 +225,8 @@ func (hp *heapPage) get(slotID uint16) (zdb2.Record, error) {
 		return nil, err
 	}
 	return t.ReadRecord(r)
+}
+
+func (hp *heapPage) flush() {
+	hp.setNumSlots(hp.numSlots)
 }
