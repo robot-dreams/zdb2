@@ -100,9 +100,9 @@ func loadHeapPage(
 	}, nil
 }
 
-// The end of the page contains a lookup table of offsets into the page where
-// records can be found.  lookupTableOffset returns the offset into the page
-// where this lookup table starts.
+// Each page contains a lookup table of offsets into the page where records can
+// be found.  lookupTableOffset returns the offset into the page where this
+// lookup table starts.
 func (hp *heapPage) lookupTableOffset() uint16 {
 	lookupTableEntriesWidth := lookupTableEntryWidth * hp.getNumSlots()
 	return pageSize - lookupTableFooterWidth - lookupTableEntriesWidth
