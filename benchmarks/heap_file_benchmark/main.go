@@ -50,7 +50,7 @@ func main() {
 		time.Since(start))
 	fmt.Println("Resetting timer...")
 	start = time.Now()
-	heapFileScan, err := heap_file.NewScan(flagOutput)
+	heapFileScan, err := heap_file.NewFileScan(flagOutput)
 	if err != nil {
 		log.Fatal(err)
 	}

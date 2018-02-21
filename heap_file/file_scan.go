@@ -14,7 +14,7 @@ type result struct {
 	err      error
 }
 
-type scan struct {
+type fileScan struct {
 	bf         *block_file.BlockFile
 	t          *zdb2.TableHeader
 	resultChan chan *result
@@ -22,9 +22,9 @@ type scan struct {
 	done       chan struct{}
 }
 
-var _ zdb2.Iterator = (*scan)(nil)
+var _ zdb2.Iterator = (*fileScan)(nil)
 
-func NewScan(path string) (*scan, error) {
+func NewFileScan(path string) (*fileScan, error) {
 	bf, err := block_file.OpenBlockFile(path, pageSize)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func NewScan(path string) (*scan, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &scan{
+	s := &fileScan{
 		bf:         bf,
 		t:          hp.t,
 		resultChan: make(chan *result),
@@ -47,7 +47,7 @@ func NewScan(path string) (*scan, error) {
 	return s, nil
 }
 
-func (s *scan) startScan() {
+func (s *fileScan) startScan() {
 	defer close(s.resultChan)
 	for pageID := int32(0); pageID < s.bf.NumBlocks; pageID++ {
 		hp, err := loadHeapPage(s.bf, pageID)
@@ -85,11 +85,11 @@ func (s *scan) startScan() {
 	}
 }
 
-func (s *scan) TableHeader() *zdb2.TableHeader {
+func (s *fileScan) TableHeader() *zdb2.TableHeader {
 	return s.t
 }
 
-func (s *scan) Next() (zdb2.Record, error) {
+func (s *fileScan) Next() (zdb2.Record, error) {
 	record, _, err := s.NextWithID()
 	if err != nil {
 		return nil, err
@@ -97,10 +97,10 @@ func (s *scan) Next() (zdb2.Record, error) {
 	return record, nil
 }
 
-func (s *scan) NextWithID() (zdb2.Record, zdb2.RecordID, error) {
+func (s *fileScan) NextWithID() (zdb2.Record, zdb2.RecordID, error) {
 	select {
 	case <-s.done:
-		return nil, zdb2.RecordID{}, errors.New("scan was closed")
+		return nil, zdb2.RecordID{}, errors.New("fileScan was closed")
 	case r, ok := <-s.resultChan:
 		if ok {
 			return r.record, r.recordID, r.err
@@ -110,7 +110,7 @@ func (s *scan) NextWithID() (zdb2.Record, zdb2.RecordID, error) {
 	}
 }
 
-func (s *scan) Close() error {
+func (s *fileScan) Close() error {
 	if s.closed {
 		return nil
 	}

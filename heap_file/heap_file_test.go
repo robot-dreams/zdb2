@@ -132,7 +132,7 @@ func (s *HeapFileSuite) TestHeapFile(c *C) {
 	c.Assert(err, IsNil)
 
 	// Make sure that scanning also works as expected.
-	heapFileScan, err := NewScan(path)
+	heapFileScan, err := NewFileScan(path)
 	c.Assert(err, IsNil)
 	zdb2.CheckIterator(c, heapFileScan, expectedRecords)
 }
