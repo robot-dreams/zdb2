@@ -82,6 +82,10 @@ func OpenHeapFile(path string) (*heapFile, error) {
 	}, nil
 }
 
+func (hf *heapFile) TableHeader() *zdb2.TableHeader {
+	return hf.lastPage.t
+}
+
 func (hf *heapFile) Insert(record zdb2.Record) (zdb2.RecordID, error) {
 	for {
 		ok, err := hf.lastPage.insert(record)
