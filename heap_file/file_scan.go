@@ -54,9 +54,9 @@ func (s *fileScan) startScan() {
 		if err != nil {
 			select {
 			case <-s.done:
-				return
 			case s.resultChan <- &result{nil, zdb2.RecordID{}, err}:
 			}
+			return
 		}
 		numSlots := hp.getNumSlots()
 		for slotID := uint16(0); slotID < numSlots; slotID++ {
@@ -64,9 +64,9 @@ func (s *fileScan) startScan() {
 			if err != nil {
 				select {
 				case <-s.done:
-					return
 				case s.resultChan <- &result{nil, zdb2.RecordID{}, err}:
 				}
+				return
 			}
 			// Records marked as deleted shouldn't be returned.
 			if record == nil {
