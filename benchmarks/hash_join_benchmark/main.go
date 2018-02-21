@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/robot-dreams/zdb2"
 	"github.com/robot-dreams/zdb2/executor"
