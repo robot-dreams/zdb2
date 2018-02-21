@@ -12,17 +12,25 @@ type HeapFileSuite struct{}
 
 var _ = Suite(&HeapFileSuite{})
 
+var t = &zdb2.TableHeader{
+	Name: "movies",
+	Fields: []*zdb2.Field{
+		{"title", zdb2.String},
+		{"rating", zdb2.Float64},
+		{"views", zdb2.Int32},
+	},
+}
+
+var records = []zdb2.Record{
+	{"Leon: The Professional", 4.6, int32(2)},
+	{"Gattaca", 4.5, int32(2)},
+	{"Hackers", 3.7, int32(3)},
+	{"Inside Out", 4.7, int32(3)},
+}
+
 func (s *HeapFileSuite) TestCreateAndOpen(c *C) {
 	path := c.MkDir() + "/heap_file_test"
-	expectedTableHeader := &zdb2.TableHeader{
-		Name: "movies",
-		Fields: []*zdb2.Field{
-			{"title", zdb2.String},
-			{"rating", zdb2.Float64},
-			{"views", zdb2.Int32},
-		},
-	}
-	hf, err := NewHeapFile(path, expectedTableHeader)
+	hf, err := NewHeapFile(path, t)
 	c.Assert(err, IsNil)
 	// Calling Close() multiple times is valid.
 	err = hf.Close()
@@ -31,7 +39,7 @@ func (s *HeapFileSuite) TestCreateAndOpen(c *C) {
 	c.Assert(err, IsNil)
 
 	// Trying to create a new heap file at an existing path should fail.
-	hf, err = NewHeapFile(path, expectedTableHeader)
+	hf, err = NewHeapFile(path, t)
 	c.Assert(err, NotNil)
 
 	// Trying to open a heap file at a nonexistent path should fail.
@@ -40,7 +48,7 @@ func (s *HeapFileSuite) TestCreateAndOpen(c *C) {
 
 	hf, err = OpenHeapFile(path)
 	c.Assert(err, IsNil)
-	c.Assert(hf.lastPage.t, DeepEquals, expectedTableHeader)
+	c.Assert(hf.lastPage.t, DeepEquals, t)
 	// Calling Close() multiple times is valid.
 	err = hf.Close()
 	c.Assert(err, IsNil)
@@ -50,25 +58,8 @@ func (s *HeapFileSuite) TestCreateAndOpen(c *C) {
 
 func (s *HeapFileSuite) TestHeapFile(c *C) {
 	path := c.MkDir() + "/heap_file_test"
-	t := &zdb2.TableHeader{
-		Name: "movies",
-		Fields: []*zdb2.Field{
-			{"title", zdb2.String},
-			{"rating", zdb2.Float64},
-			{"views", zdb2.Int32},
-		},
-	}
 	hf, err := NewHeapFile(path, t)
 	c.Assert(err, IsNil)
-
-	// Define a collection of records to draw from (we're going to repeat these
-	// a lot).
-	records := []zdb2.Record{
-		{"Leon: The Professional", 4.6, int32(2)},
-		{"Gattaca", 4.5, int32(2)},
-		{"Hackers", 3.7, int32(3)},
-		{"Inside Out", 4.7, int32(3)},
-	}
 
 	// Insert a lot of records.
 	numToInsert := 5000
@@ -139,23 +130,6 @@ func (s *HeapFileSuite) TestHeapFile(c *C) {
 
 func (s *HeapFileSuite) TestBulkLoad(c *C) {
 	path := c.MkDir() + "/heap_file_test"
-	t := &zdb2.TableHeader{
-		Name: "movies",
-		Fields: []*zdb2.Field{
-			{"title", zdb2.String},
-			{"rating", zdb2.Float64},
-			{"views", zdb2.Int32},
-		},
-	}
-
-	// Define a collection of records to draw from (we're going to repeat these
-	// a lot).
-	records := []zdb2.Record{
-		{"Leon: The Professional", 4.6, int32(2)},
-		{"Gattaca", 4.5, int32(2)},
-		{"Hackers", 3.7, int32(3)},
-		{"Inside Out", 4.7, int32(3)},
-	}
 
 	// Bulk load a lot of records.
 	numToBulkLoad := 100000
