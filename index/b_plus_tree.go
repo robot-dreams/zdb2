@@ -4,12 +4,12 @@ import (
 	"github.com/robot-dreams/zdb2/block_file"
 )
 
-type bPlusTree struct {
+type BPlusTree struct {
 	bf   *block_file.BlockFile
 	root *internalNode
 }
 
-func OpenBPlusTree(path string) (*bPlusTree, error) {
+func OpenBPlusTree(path string) (*BPlusTree, error) {
 	bf, err := block_file.OpenBlockFile(path, blockSize)
 	if err != nil {
 		return nil, err
@@ -51,13 +51,13 @@ func OpenBPlusTree(path string) (*bPlusTree, error) {
 		}
 		root = n.(*internalNode)
 	}
-	return &bPlusTree{
+	return &BPlusTree{
 		bf:   bf,
 		root: root,
 	}, nil
 }
 
-func (b *bPlusTree) AddEntry(entry Entry) error {
+func (b *BPlusTree) AddEntry(entry Entry) error {
 	splitRouter, err := b.root.addEntry(entry)
 	if err != nil {
 		return err
@@ -72,15 +72,15 @@ func (b *bPlusTree) AddEntry(entry Entry) error {
 	return nil
 }
 
-func (b *bPlusTree) FindEqual(key int32) (Iterator, error) {
+func (b *BPlusTree) FindEqual(key int32) (Iterator, error) {
 	return b.root.findEqual(key)
 }
 
-func (b *bPlusTree) FindGreaterEqual(key int32) (Iterator, error) {
+func (b *BPlusTree) FindGreaterEqual(key int32) (Iterator, error) {
 	return b.root.findGreaterEqual(key)
 }
 
-func (b *bPlusTree) Close() error {
+func (b *BPlusTree) Close() error {
 	err := b.root.flush()
 	if err != nil {
 		return err

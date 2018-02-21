@@ -19,7 +19,7 @@ func BulkLoadNewBPlusTree(
 	path string,
 	sortedEntries []Entry,
 	loadingFactor float64,
-) (*bPlusTree, error) {
+) (*BPlusTree, error) {
 	if len(sortedEntries) == 0 {
 		return nil, errors.New("No entries to bulk load")
 	}
@@ -88,7 +88,7 @@ func BulkLoadNewBPlusTree(
 			return nil, err
 		}
 	}
-	return &bPlusTree{
+	return &BPlusTree{
 		bf:   bf,
 		root: root,
 	}, nil

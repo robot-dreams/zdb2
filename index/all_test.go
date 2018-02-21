@@ -45,7 +45,7 @@ func generateSortedTestEntries(numKeys, numEntriesPerKey int) []Entry {
 	return testEntries
 }
 
-func checkTestEntries(c *C, tree *bPlusTree, numKeys int, numEntriesPerKey int) {
+func checkTestEntries(c *C, tree *BPlusTree, numKeys int, numEntriesPerKey int) {
 	for i := 0; i < numKeys; i++ {
 		// All of these should be found.
 		iter, err := tree.FindEqual(int32(i) * keyDelta)
