@@ -46,6 +46,7 @@ func (lm *lockManager) Acquire(
 	r := newRequest(clientID, exclusive, lm.mu)
 	lm.clientToPendingRequest[clientID] = r
 	err := l.acquire(r)
+
 	// We clear the pending request as soon as l.acquire returns, whether or not
 	// the acquire was successful.
 	delete(lm.clientToPendingRequest, clientID)

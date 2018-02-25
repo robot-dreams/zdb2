@@ -18,7 +18,7 @@ func (lm *lockManager) findAndMarkDeadlock() {
 	defer lm.mu.Unlock()
 
 	waitGraph := lm.buildWaitGraph()
-	clientID, ok := findCycle(waitGraph)
+	clientID, ok := findCycleNode(waitGraph)
 	if ok {
 		lm.clientToPendingRequest[clientID].deadlockDetected = true
 		lm.clientToPendingRequest[clientID].cond.Signal()
@@ -39,13 +39,13 @@ func (lm *lockManager) buildWaitGraph() map[string][]string {
 	return result
 }
 
-func findCycle(graph map[string][]string) (string, bool) {
+func findCycleNode(graph map[string][]string) (string, bool) {
 	visited := make(map[string]bool)
 	for node := range graph {
 		if visited[node] {
 			continue
 		}
-		cycleNode, ok := findCycleRecursive(node, graph, visited)
+		cycleNode, ok := findCycleNodeRecursive(node, graph, visited)
 		if ok {
 			return cycleNode, ok
 		}
@@ -53,7 +53,7 @@ func findCycle(graph map[string][]string) (string, bool) {
 	return "", false
 }
 
-func findCycleRecursive(
+func findCycleNodeRecursive(
 	node string,
 	graph map[string][]string,
 	visited map[string]bool,
@@ -63,7 +63,7 @@ func findCycleRecursive(
 	}
 	visited[node] = true
 	for _, neighbor := range graph[node] {
-		cycleNode, ok := findCycleRecursive(neighbor, graph, visited)
+		cycleNode, ok := findCycleNodeRecursive(neighbor, graph, visited)
 		if ok {
 			return cycleNode, ok
 		}

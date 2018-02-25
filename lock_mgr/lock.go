@@ -113,6 +113,8 @@ func (l *lock) signalPendingRequests() {
 	}
 }
 
+// Returns whether a new client (that doesn't already hold the lock in any mode)
+// can acquire the lock in the given mode.
 func (l *lock) canAcquire(exclusive bool) bool {
 	if len(l.holders) == 0 {
 		return true
