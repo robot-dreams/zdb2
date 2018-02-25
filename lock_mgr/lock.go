@@ -13,6 +13,19 @@ type request struct {
 	deadlockDetected bool
 }
 
+func newRequest(
+	clientID string,
+	exclusive bool,
+	mu *sync.Mutex,
+) *request {
+	return &request{
+		clientID:         clientID,
+		exclusive:        exclusive,
+		cond:             sync.NewCond(mu),
+		deadlockDetected: false,
+	}
+}
+
 type lock struct {
 	lockID string
 
