@@ -2,8 +2,6 @@ package lock_mgr
 
 import (
 	"sync"
-
-	"github.com/dropbox/godropbox/errors"
 )
 
 type request struct {
@@ -39,25 +37,28 @@ type lock struct {
 	pending []*request
 }
 
-func (l *lock) removeFromPending(clientID string) {
-	j := 0
-	for i := 0; i < len(l.pending); i++ {
-		if l.pending[i].clientID != clientID {
-			l.pending[j] = l.pending[i]
-			j++
+func removeClientRequests(requests *[]*request, clientID string) {
+	for i := 0; i < len(*requests); i++ {
+		if (*requests)[i].clientID == clientID {
+			(*requests) = append((*requests)[:i], (*requests)[i+1:]...)
 		}
 	}
-	l.pending = l.pending[:j]
+}
+
+func (l *lock) handleDeadlock(clientID string) {
+	removeClientRequests(&l.pending, clientID)
+	l.signalPendingRequests()
 }
 
 // Precondition:
 //     r.clientID holds the lock in shared mode
+//     r.exclusive == true
 func (l *lock) upgrade(r *request) error {
 	l.pending = append(l.pending, r)
 	for l.pending[0] != r || len(l.holders) > 1 {
 		r.cond.Wait()
 		if r.deadlockDetected {
-			l.removeFromPending(r.clientID)
+			l.handleDeadlock(r.clientID)
 			return Deadlock
 		}
 	}
@@ -75,6 +76,8 @@ func (l *lock) canAcquire(exclusive bool) bool {
 }
 
 func (l *lock) acquire(r *request) error {
+	// If the client already holds this lock, then we either do nothing, or try
+	// to upgrade.
 	for _, holder := range l.holders {
 		if r.clientID == holder.clientID {
 			if r.exclusive && !holder.exclusive {
@@ -83,11 +86,13 @@ func (l *lock) acquire(r *request) error {
 			return nil
 		}
 	}
+
+	// The client doesn't hold this lock yet, so we actually try to acquire it.
 	l.pending = append(l.pending, r)
 	for l.pending[0] != r || !l.canAcquire(r.exclusive) {
 		r.cond.Wait()
 		if r.deadlockDetected {
-			l.removeFromPending(r.clientID)
+			l.handleDeadlock(r.clientID)
 			return Deadlock
 		}
 	}
@@ -96,10 +101,7 @@ func (l *lock) acquire(r *request) error {
 	return nil
 }
 
-// Precondition:
-//     0 <= i < len(holders)
-func (l *lock) removeHolder(i int) {
-	l.holders = append(l.holders[:i], l.holders[i+1:]...)
+func (l *lock) signalPendingRequests() {
 	if len(l.pending) == 0 {
 		return
 	} else if l.pending[0].exclusive {
@@ -120,14 +122,6 @@ func (l *lock) removeHolder(i int) {
 }
 
 func (l *lock) release(clientID string) {
-	for i, holder := range l.holders {
-		if holder.clientID == clientID {
-			l.removeHolder(i)
-			return
-		}
-	}
-	panic(errors.Newf(
-		"lock %v was not held by client %v",
-		l.lockID,
-		clientID))
+	removeClientRequests(&l.holders, clientID)
+	l.signalPendingRequests()
 }
