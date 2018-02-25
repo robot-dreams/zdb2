@@ -26,30 +26,6 @@ func NewLockManager() *lockManager {
 	return lm
 }
 
-func (lm *lockManager) markHeldLockID(clientID string, lockID string) {
-	if _, ok := lm.clientToHeldLockIDs[clientID]; !ok {
-		lm.clientToHeldLockIDs[clientID] = make(map[string]struct{})
-	}
-	lm.clientToHeldLockIDs[clientID][lockID] = struct{}{}
-}
-
-func (lm *lockManager) unmarkLockIDHeld(
-	m map[string]map[string]struct{},
-	clientID string,
-	lockID string,
-) {
-	delete(lm.clientToHeldLockIDs[clientID], lockID)
-}
-
-func (lm *lockManager) getOrCreateLock(lockID string) *lock {
-	if _, ok := lm.lockIDToLock[lockID]; !ok {
-		lm.lockIDToLock[lockID] = &lock{
-			lockID: lockID,
-		}
-	}
-	return lm.lockIDToLock[lockID]
-}
-
 func (lm *lockManager) Acquire(
 	clientID string,
 	lockID string,
@@ -78,6 +54,22 @@ func (lm *lockManager) Acquire(
 	}
 	lm.markHeldLockID(clientID, lockID)
 	return nil
+}
+
+func (lm *lockManager) getOrCreateLock(lockID string) *lock {
+	if _, ok := lm.lockIDToLock[lockID]; !ok {
+		lm.lockIDToLock[lockID] = &lock{
+			lockID: lockID,
+		}
+	}
+	return lm.lockIDToLock[lockID]
+}
+
+func (lm *lockManager) markHeldLockID(clientID string, lockID string) {
+	if _, ok := lm.clientToHeldLockIDs[clientID]; !ok {
+		lm.clientToHeldLockIDs[clientID] = make(map[string]struct{})
+	}
+	lm.clientToHeldLockIDs[clientID][lockID] = struct{}{}
 }
 
 func (lm *lockManager) ReleaseAll(clientID string) {
