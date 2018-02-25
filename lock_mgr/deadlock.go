@@ -20,8 +20,8 @@ func (lm *lockManager) findAndMarkDeadlock() {
 	waitGraph := lm.buildWaitGraph()
 	clientID, ok := findCycle(waitGraph)
 	if ok {
-		lm.clientToQueuedRequest[clientID].deadlockDetected = true
-		lm.clientToQueuedRequest[clientID].cond.Signal()
+		lm.clientToPendingRequest[clientID].deadlockDetected = true
+		lm.clientToPendingRequest[clientID].cond.Signal()
 	}
 }
 
@@ -29,9 +29,9 @@ func (lm *lockManager) buildWaitGraph() map[string][]string {
 	result := make(map[string][]string)
 	for _, lock := range lm.lockIDToLock {
 		for _, holder := range lock.holders {
-			for _, queued := range lock.queue {
-				result[queued.clientID] = append(
-					result[queued.clientID],
+			for _, pending := range lock.pending {
+				result[pending.clientID] = append(
+					result[pending.clientID],
 					holder.clientID)
 			}
 		}

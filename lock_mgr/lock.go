@@ -36,32 +36,32 @@ type lock struct {
 
 	// Invariant:
 	//     Each clientID appears at most once
-	queue []*request
+	pending []*request
 }
 
-func (l *lock) removeFromQueue(clientID string) {
+func (l *lock) removeFromPending(clientID string) {
 	j := 0
-	for i := 0; i < len(l.queue); i++ {
-		if l.queue[i].clientID != clientID {
-			l.queue[j] = l.queue[i]
+	for i := 0; i < len(l.pending); i++ {
+		if l.pending[i].clientID != clientID {
+			l.pending[j] = l.pending[i]
 			j++
 		}
 	}
-	l.queue = l.queue[:j]
+	l.pending = l.pending[:j]
 }
 
 // Precondition:
 //     r.clientID holds the lock in shared mode
 func (l *lock) upgrade(r *request) error {
-	l.queue = append(l.queue, r)
-	for l.queue[0] != r || len(l.holders) > 1 {
+	l.pending = append(l.pending, r)
+	for l.pending[0] != r || len(l.holders) > 1 {
 		r.cond.Wait()
 		if r.deadlockDetected {
-			l.removeFromQueue(r.clientID)
+			l.removeFromPending(r.clientID)
 			return Deadlock
 		}
 	}
-	l.queue = l.queue[1:]
+	l.pending = l.pending[1:]
 	l.holders[0].exclusive = true
 	return nil
 }
@@ -83,15 +83,15 @@ func (l *lock) acquire(r *request) error {
 			return nil
 		}
 	}
-	l.queue = append(l.queue, r)
-	for l.queue[0] != r || !l.canAcquire(r.exclusive) {
+	l.pending = append(l.pending, r)
+	for l.pending[0] != r || !l.canAcquire(r.exclusive) {
 		r.cond.Wait()
 		if r.deadlockDetected {
-			l.removeFromQueue(r.clientID)
+			l.removeFromPending(r.clientID)
 			return Deadlock
 		}
 	}
-	l.queue = l.queue[1:]
+	l.pending = l.pending[1:]
 	l.holders = append(l.holders, r)
 	return nil
 }
@@ -100,21 +100,21 @@ func (l *lock) acquire(r *request) error {
 //     0 <= i < len(holders)
 func (l *lock) removeHolder(i int) {
 	l.holders = append(l.holders[:i], l.holders[i+1:]...)
-	if len(l.queue) == 0 {
+	if len(l.pending) == 0 {
 		return
-	} else if l.queue[0].exclusive {
+	} else if l.pending[0].exclusive {
 		canAcquire := len(l.holders) == 0
 		canUpgrade := len(l.holders) == 1 &&
-			l.queue[0].clientID == l.holders[0].clientID
+			l.pending[0].clientID == l.holders[0].clientID
 		if canAcquire || canUpgrade {
-			l.queue[0].cond.Signal()
+			l.pending[0].cond.Signal()
 		}
 	} else {
 		if len(l.holders) > 0 {
 			return
 		}
-		for i := 0; i < len(l.queue) && !l.queue[i].exclusive; i++ {
-			l.queue[i].cond.Signal()
+		for i := 0; i < len(l.pending) && !l.pending[i].exclusive; i++ {
+			l.pending[i].cond.Signal()
 		}
 	}
 }

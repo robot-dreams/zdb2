@@ -87,7 +87,7 @@ func (s *LockManagerSuite) TestLockManager(c *C) {
 
 	// Make sure there's nothing left.
 	c.Assert(len(lm.lockIDToLock["l1"].holders), Equals, 0)
-	c.Assert(len(lm.lockIDToLock["l1"].queue), Equals, 0)
+	c.Assert(len(lm.lockIDToLock["l1"].pending), Equals, 0)
 }
 
 func (s *LockManagerSuite) TestDeadlockDetector(c *C) {

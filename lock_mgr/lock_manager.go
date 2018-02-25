@@ -9,18 +9,18 @@ import (
 var Deadlock = errors.New("Deadlock detected!")
 
 type lockManager struct {
-	mu                    *sync.Mutex
-	lockIDToLock          map[string]*lock
-	clientToHeldLockIDs   map[string]map[string]struct{}
-	clientToQueuedRequest map[string]*request
+	mu                     *sync.Mutex
+	lockIDToLock           map[string]*lock
+	clientToHeldLockIDs    map[string]map[string]struct{}
+	clientToPendingRequest map[string]*request
 }
 
 func NewLockManager() *lockManager {
 	lm := &lockManager{
-		mu:                    &sync.Mutex{},
-		lockIDToLock:          make(map[string]*lock),
-		clientToHeldLockIDs:   make(map[string]map[string]struct{}),
-		clientToQueuedRequest: make(map[string]*request),
+		mu:                     &sync.Mutex{},
+		lockIDToLock:           make(map[string]*lock),
+		clientToHeldLockIDs:    make(map[string]map[string]struct{}),
+		clientToPendingRequest: make(map[string]*request),
 	}
 	go lm.startDeadlockDetector()
 	return lm
@@ -58,21 +58,21 @@ func (lm *lockManager) Acquire(
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	// A client can only have one queued request at a time.
-	if r, ok := lm.clientToQueuedRequest[clientID]; ok {
+	// A client can only have one pending request at a time.
+	if r, ok := lm.clientToPendingRequest[clientID]; ok {
 		return errors.Newf(
-			"Client %v already has a queued request %+v",
+			"Client %v already has a pending request %+v",
 			clientID,
 			r)
 	}
 
 	l := lm.getOrCreateLock(lockID)
 	r := newRequest(clientID, exclusive, lm.mu)
-	lm.clientToQueuedRequest[clientID] = r
+	lm.clientToPendingRequest[clientID] = r
 	err := l.acquire(r)
-	// We clear the queued request as soon as l.acquire returns, whether or not
+	// We clear the pending request as soon as l.acquire returns, whether or not
 	// the acquire was successful.
-	delete(lm.clientToQueuedRequest, clientID)
+	delete(lm.clientToPendingRequest, clientID)
 	if err != nil {
 		return err
 	}
