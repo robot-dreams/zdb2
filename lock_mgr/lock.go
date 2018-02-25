@@ -37,47 +37,9 @@ type lock struct {
 	pending []*request
 }
 
-func removeClientRequests(requests *[]*request, clientID string) {
-	for i := 0; i < len(*requests); i++ {
-		if (*requests)[i].clientID == clientID {
-			(*requests) = append((*requests)[:i], (*requests)[i+1:]...)
-		}
-	}
-}
-
-func (l *lock) handleDeadlock(clientID string) {
-	removeClientRequests(&l.pending, clientID)
-	l.signalPendingRequests()
-}
-
-// Precondition:
-//     r.clientID holds the lock in shared mode
-//     r.exclusive == true
-func (l *lock) upgrade(r *request) error {
-	l.pending = append(l.pending, r)
-	for l.pending[0] != r || len(l.holders) > 1 {
-		r.cond.Wait()
-		if r.deadlockDetected {
-			l.handleDeadlock(r.clientID)
-			return Deadlock
-		}
-	}
-	l.pending = l.pending[1:]
-	l.holders[0].exclusive = true
-	return nil
-}
-
-func (l *lock) canAcquire(exclusive bool) bool {
-	if len(l.holders) == 0 {
-		return true
-	} else {
-		return !exclusive && !l.holders[0].exclusive
-	}
-}
-
 func (l *lock) acquire(r *request) error {
 	// If the client already holds this lock, then we either do nothing, or try
-	// to upgrade.
+	// to upgrade from shared to xxclusive.
 	for _, holder := range l.holders {
 		if r.clientID == holder.clientID {
 			if r.exclusive && !holder.exclusive {
@@ -101,6 +63,36 @@ func (l *lock) acquire(r *request) error {
 	return nil
 }
 
+// Precondition:
+//     r.clientID holds the lock in shared mode
+//     r.exclusive == true
+func (l *lock) upgrade(r *request) error {
+	l.pending = append(l.pending, r)
+	for l.pending[0] != r || len(l.holders) > 1 {
+		r.cond.Wait()
+		if r.deadlockDetected {
+			l.handleDeadlock(r.clientID)
+			return Deadlock
+		}
+	}
+	l.pending = l.pending[1:]
+	l.holders[0].exclusive = true
+	return nil
+}
+
+func (l *lock) handleDeadlock(clientID string) {
+	removeClientRequests(&l.pending, clientID)
+	l.signalPendingRequests()
+}
+
+func removeClientRequests(requests *[]*request, clientID string) {
+	for i := 0; i < len(*requests); i++ {
+		if (*requests)[i].clientID == clientID {
+			(*requests) = append((*requests)[:i], (*requests)[i+1:]...)
+		}
+	}
+}
+
 func (l *lock) signalPendingRequests() {
 	if len(l.pending) == 0 {
 		return
@@ -118,6 +110,14 @@ func (l *lock) signalPendingRequests() {
 		for i := 0; i < len(l.pending) && !l.pending[i].exclusive; i++ {
 			l.pending[i].cond.Signal()
 		}
+	}
+}
+
+func (l *lock) canAcquire(exclusive bool) bool {
+	if len(l.holders) == 0 {
+		return true
+	} else {
+		return !exclusive && !l.holders[0].exclusive
 	}
 }
 
