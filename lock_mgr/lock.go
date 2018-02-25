@@ -25,6 +25,17 @@ type lock struct {
 	queue []request
 }
 
+// Precondition:
+//     r.clientID holds the lock in shared mode
+func (l *lock) upgrade(r request) {
+	l.queue = append(l.queue, r)
+	for l.queue[0] != r || len(l.holders) > 1 {
+		r.cond.Wait()
+	}
+	l.queue = l.queue[1:]
+	l.holders[0].exclusive = true
+}
+
 func (l *lock) canAcquire(exclusive bool) bool {
 	if len(l.holders) == 0 {
 		return true
@@ -34,6 +45,14 @@ func (l *lock) canAcquire(exclusive bool) bool {
 }
 
 func (l *lock) acquire(r request) {
+	for _, holder := range l.holders {
+		if r.clientID == holder.clientID {
+			if r.exclusive && !holder.exclusive {
+				l.upgrade(r)
+			}
+			return
+		}
+	}
 	l.queue = append(l.queue, r)
 	for l.queue[0] != r || !l.canAcquire(r.exclusive) {
 		r.cond.Wait()

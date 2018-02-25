@@ -71,6 +71,13 @@ func (s *LockManagerSuite) TestLockManager(c *C) {
 	c.Assert(len(lm.lockIDToLock["l1"].holders), Equals, 1)
 	c.Assert(lm.lockIDToLock["l1"].holders[0].clientID, Equals, "c4")
 
+	// Locks are re-entrant (thus this should not block).
+	assertLockBehavior(c, lm, "c4", "l1", true, false)
+
+	// Exclusive lock is already held, so nothing need to be done to "acquire"
+	// the shared lock.
+	assertLockBehavior(c, lm, "c4", "l1", false, false)
+
 	lm.ReleaseAll("c4")
 
 	// Wait for c5 to get the lock.
