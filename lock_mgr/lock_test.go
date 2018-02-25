@@ -25,7 +25,7 @@ func assertLockBehavior(
 	exclusive bool,
 	blockingExpected bool,
 ) {
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	go func() {
 		lm.Acquire(clientID, lockID, exclusive)
 		close(done)
