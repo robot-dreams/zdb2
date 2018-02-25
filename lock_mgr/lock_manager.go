@@ -1,8 +1,11 @@
 package lock_mgr
 
 import (
+	"errors"
 	"sync"
 )
+
+var Deadlock = errors.New("Deadlock detected!")
 
 type lockManager struct {
 	mu              *sync.Mutex
@@ -22,7 +25,11 @@ func NewLockManager() *lockManager {
 	return lm
 }
 
-func (lm *lockManager) Acquire(clientID string, lockID string, exclusive bool) {
+func (lm *lockManager) Acquire(
+	clientID string,
+	lockID string,
+	exclusive bool,
+) error {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
@@ -31,15 +38,19 @@ func (lm *lockManager) Acquire(clientID string, lockID string, exclusive bool) {
 			lockID: lockID,
 		}
 	}
-	lm.lockIDToLock[lockID].acquire(request{
+	err := lm.lockIDToLock[lockID].acquire(&request{
 		clientID:  clientID,
 		exclusive: exclusive,
 		cond:      sync.NewCond(lm.mu),
 	})
+	if err != nil {
+		return err
+	}
 	if _, ok := lm.clientToLockIDs[clientID]; !ok {
 		lm.clientToLockIDs[clientID] = make(map[string]struct{})
 	}
 	lm.clientToLockIDs[clientID][lockID] = struct{}{}
+	return nil
 }
 
 func (lm *lockManager) ReleaseAll(clientID string) {

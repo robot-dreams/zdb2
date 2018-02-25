@@ -7,9 +7,10 @@ import (
 )
 
 type request struct {
-	clientID  string
-	exclusive bool
-	cond      *sync.Cond
+	clientID         string
+	exclusive        bool
+	cond             *sync.Cond
+	deadlockDetected bool
 }
 
 type lock struct {
@@ -18,22 +19,26 @@ type lock struct {
 	// Invariants:
 	//     If len(holders) > 0, then every element has exclusive == false
 	//     Each clientID appears at most once
-	holders []request
+	holders []*request
 
 	// Invariant:
 	//     Each clientID appears at most once
-	queue []request
+	queue []*request
 }
 
 // Precondition:
 //     r.clientID holds the lock in shared mode
-func (l *lock) upgrade(r request) {
+func (l *lock) upgrade(r *request) error {
 	l.queue = append(l.queue, r)
 	for l.queue[0] != r || len(l.holders) > 1 {
 		r.cond.Wait()
+		if r.deadlockDetected {
+			return Deadlock
+		}
 	}
 	l.queue = l.queue[1:]
 	l.holders[0].exclusive = true
+	return nil
 }
 
 func (l *lock) canAcquire(exclusive bool) bool {
@@ -44,21 +49,25 @@ func (l *lock) canAcquire(exclusive bool) bool {
 	}
 }
 
-func (l *lock) acquire(r request) {
+func (l *lock) acquire(r *request) error {
 	for _, holder := range l.holders {
 		if r.clientID == holder.clientID {
 			if r.exclusive && !holder.exclusive {
-				l.upgrade(r)
+				return l.upgrade(r)
 			}
-			return
+			return nil
 		}
 	}
 	l.queue = append(l.queue, r)
 	for l.queue[0] != r || !l.canAcquire(r.exclusive) {
 		r.cond.Wait()
+		if r.deadlockDetected {
+			return Deadlock
+		}
 	}
 	l.queue = l.queue[1:]
 	l.holders = append(l.holders, r)
+	return nil
 }
 
 // Precondition:
