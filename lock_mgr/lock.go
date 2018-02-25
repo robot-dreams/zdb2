@@ -65,15 +65,19 @@ func (l *lock) acquire(r request) {
 //     0 <= i < len(holders)
 func (l *lock) removeHolder(i int) {
 	l.holders = append(l.holders[:i], l.holders[i+1:]...)
-	if len(l.holders) > 0 {
-		return
-	}
 	if len(l.queue) == 0 {
 		return
-	}
-	if l.queue[0].exclusive {
-		l.queue[0].cond.Signal()
+	} else if l.queue[0].exclusive {
+		canAcquire := len(l.holders) == 0
+		canUpgrade := len(l.holders) == 1 &&
+			l.queue[0].clientID == l.holders[0].clientID
+		if canAcquire || canUpgrade {
+			l.queue[0].cond.Signal()
+		}
 	} else {
+		if len(l.holders) > 0 {
+			return
+		}
 		for i := 0; i < len(l.queue) && !l.queue[i].exclusive; i++ {
 			l.queue[i].cond.Signal()
 		}

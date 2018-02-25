@@ -115,3 +115,26 @@ func (s *LockManagerSuite) TestDeadlockDetector(c *C) {
 			testDeadlockDetectionTimeout)
 	}
 }
+
+func (s *LockManagerSuite) TestLockUpgrade(c *C) {
+	lm := NewLockManager()
+
+	// Lock upgrade should succeed in this case.
+	assertLockBehavior(c, lm, "c1", "l1", false, false)
+	assertLockBehavior(c, lm, "c1", "l1", true, false)
+	lm.ReleaseAll("c1")
+
+	// Lock upgrade will block if another client holds the shared lock.
+	assertLockBehavior(c, lm, "c1", "l1", false, false)
+	assertLockBehavior(c, lm, "c2", "l1", false, false)
+	assertLockBehavior(c, lm, "c1", "l1", true, true)
+	lm.ReleaseAll("c2")
+	time.Sleep(testLockTimeout)
+	lm.ReleaseAll("c1")
+	time.Sleep(testLockTimeout)
+
+	// Lock upgrade will block if another client is in line.
+	assertLockBehavior(c, lm, "c1", "l1", false, false)
+	assertLockBehavior(c, lm, "c2", "l1", true, true)
+	assertLockBehavior(c, lm, "c1", "l1", true, true)
+}
