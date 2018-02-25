@@ -8,14 +8,18 @@ type lockManager struct {
 	mu              *sync.Mutex
 	lockIDToLock    map[string]*lock
 	clientToLockIDs map[string][]string
+	clientKillChan  chan string
 }
 
 func NewLockManager() *lockManager {
-	return &lockManager{
+	lm := &lockManager{
 		mu:              &sync.Mutex{},
 		lockIDToLock:    make(map[string]*lock),
 		clientToLockIDs: make(map[string][]string),
+		clientKillChan:  make(chan string),
 	}
+	go lm.startDeadlockDetector()
+	return lm
 }
 
 func (lm *lockManager) Acquire(clientID string, lockID string, exclusive bool) {

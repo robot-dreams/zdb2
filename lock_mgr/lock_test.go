@@ -4,13 +4,18 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
+
+	. "github.com/dropbox/godropbox/gocheck2"
 )
 
 type LockManagerSuite struct{}
 
 var _ = Suite(&LockManagerSuite{})
 
-const testLockTimeout = 250 * time.Millisecond
+const (
+	testLockTimeout              = 250 * time.Millisecond
+	testDeadlockDetectionTimeout = 5 * time.Second
+)
 
 func assertLockBehavior(
 	c *C,
@@ -78,4 +83,28 @@ func (s *LockManagerSuite) TestLockManager(c *C) {
 	// Make sure there's nothing left.
 	c.Assert(len(lm.lockIDToLock["l1"].holders), Equals, 0)
 	c.Assert(len(lm.lockIDToLock["l1"].queue), Equals, 0)
+}
+
+func (s *LockManagerSuite) TestDeadlockDetector(c *C) {
+	lm := NewLockManager()
+	lm.Acquire("c1", "l1", true)
+	lm.Acquire("c2", "l2", true)
+	lm.Acquire("c3", "l3", true)
+	go func() {
+		lm.Acquire("c1", "l2", true)
+	}()
+	go func() {
+		lm.Acquire("c2", "l3", true)
+	}()
+	go func() {
+		lm.Acquire("c3", "l1", true)
+	}()
+	select {
+	case clientID := <-lm.clientKillChan:
+		c.Assert(clientID == "c1" || clientID == "c2" || clientID == "c3", IsTrue)
+	case <-time.After(testDeadlockDetectionTimeout):
+		c.Errorf(
+			"Deadlock between c1, c2, c3 should have been detected after %v",
+			testDeadlockDetectionTimeout)
+	}
 }
