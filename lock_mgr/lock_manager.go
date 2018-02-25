@@ -7,7 +7,7 @@ import (
 type lockManager struct {
 	mu              *sync.Mutex
 	lockIDToLock    map[string]*lock
-	clientToLockIDs map[string][]string
+	clientToLockIDs map[string]map[string]struct{}
 	clientKillChan  chan string
 }
 
@@ -15,7 +15,7 @@ func NewLockManager() *lockManager {
 	lm := &lockManager{
 		mu:              &sync.Mutex{},
 		lockIDToLock:    make(map[string]*lock),
-		clientToLockIDs: make(map[string][]string),
+		clientToLockIDs: make(map[string]map[string]struct{}),
 		clientKillChan:  make(chan string),
 	}
 	go lm.startDeadlockDetector()
@@ -36,14 +36,18 @@ func (lm *lockManager) Acquire(clientID string, lockID string, exclusive bool) {
 		exclusive: exclusive,
 		cond:      sync.NewCond(lm.mu),
 	})
-	lm.clientToLockIDs[clientID] = append(lm.clientToLockIDs[clientID], lockID)
+	if _, ok := lm.clientToLockIDs[clientID]; !ok {
+		lm.clientToLockIDs[clientID] = make(map[string]struct{})
+	}
+	lm.clientToLockIDs[clientID][lockID] = struct{}{}
 }
 
 func (lm *lockManager) ReleaseAll(clientID string) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	for _, lock := range lm.clientToLockIDs[clientID] {
+	for lock := range lm.clientToLockIDs[clientID] {
 		lm.lockIDToLock[lock].release(clientID)
 	}
+	delete(lm.clientToLockIDs, clientID)
 }
