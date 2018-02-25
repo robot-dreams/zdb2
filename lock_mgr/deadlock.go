@@ -9,18 +9,23 @@ const deadlockDetectorPeriod = 1 * time.Second
 func (lm *lockManager) startDeadlockDetector() {
 	for {
 		<-time.After(deadlockDetectorPeriod)
-		waitGraph := lm.buildWaitGraph()
-		clientID, ok := findCycle(waitGraph)
-		if ok {
-			lm.clientKillChan <- clientID
-		}
+		lm.findAndMarkDeadlock()
+	}
+}
+
+func (lm *lockManager) findAndMarkDeadlock() {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+
+	waitGraph := lm.buildWaitGraph()
+	clientID, ok := findCycle(waitGraph)
+	if ok {
+		lm.clientToQueuedRequest[clientID].deadlockDetected = true
+		lm.clientToQueuedRequest[clientID].cond.Signal()
 	}
 }
 
 func (lm *lockManager) buildWaitGraph() map[string][]string {
-	lm.mu.Lock()
-	defer lm.mu.Unlock()
-
 	result := make(map[string][]string)
 	for _, lock := range lm.lockIDToLock {
 		for _, holder := range lock.holders {

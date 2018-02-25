@@ -1,8 +1,9 @@
 package lock_mgr
 
 import (
-	"errors"
 	"sync"
+
+	"github.com/dropbox/godropbox/errors"
 )
 
 var Deadlock = errors.New("Deadlock detected!")
@@ -11,8 +12,7 @@ type lockManager struct {
 	mu                    *sync.Mutex
 	lockIDToLock          map[string]*lock
 	clientToHeldLockIDs   map[string]map[string]struct{}
-	clientToQueuedLockIDs map[string]map[string]struct{}
-	clientKillChan        chan string
+	clientToQueuedRequest map[string]*request
 }
 
 func NewLockManager() *lockManager {
@@ -20,30 +20,25 @@ func NewLockManager() *lockManager {
 		mu:                    &sync.Mutex{},
 		lockIDToLock:          make(map[string]*lock),
 		clientToHeldLockIDs:   make(map[string]map[string]struct{}),
-		clientToQueuedLockIDs: make(map[string]map[string]struct{}),
-		clientKillChan:        make(chan string),
+		clientToQueuedRequest: make(map[string]*request),
 	}
 	go lm.startDeadlockDetector()
 	return lm
 }
 
-func markLockIDForClient(
-	m map[string]map[string]struct{},
-	clientID string,
-	lockID string,
-) {
-	if _, ok := m[clientID]; !ok {
-		m[clientID] = make(map[string]struct{})
+func (lm *lockManager) markHeldLockID(clientID string, lockID string) {
+	if _, ok := lm.clientToHeldLockIDs[clientID]; !ok {
+		lm.clientToHeldLockIDs[clientID] = make(map[string]struct{})
 	}
-	m[clientID][lockID] = struct{}{}
+	lm.clientToHeldLockIDs[clientID][lockID] = struct{}{}
 }
 
-func unmarkLockIDForClient(
+func (lm *lockManager) unmarkLockIDHeld(
 	m map[string]map[string]struct{},
 	clientID string,
 	lockID string,
 ) {
-	delete(m[clientID], lockID)
+	delete(lm.clientToHeldLockIDs[clientID], lockID)
 }
 
 func (lm *lockManager) getOrCreateLock(lockID string) *lock {
@@ -63,14 +58,25 @@ func (lm *lockManager) Acquire(
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	markLockIDForClient(lm.clientToQueuedLockIDs, clientID, lockID)
+	// A client can only have one queued request at a time.
+	if r, ok := lm.clientToQueuedRequest[clientID]; ok {
+		return errors.Newf(
+			"Client %v already has a queued request %+v",
+			clientID,
+			r)
+	}
+
 	l := lm.getOrCreateLock(lockID)
-	err := l.acquire(newRequest(clientID, exclusive, lm.mu))
+	r := newRequest(clientID, exclusive, lm.mu)
+	lm.clientToQueuedRequest[clientID] = r
+	err := l.acquire(r)
+	// We clear the queued request as soon as l.acquire returns, whether or not
+	// the acquire was successful.
+	delete(lm.clientToQueuedRequest, clientID)
 	if err != nil {
 		return err
 	}
-	unmarkLockIDForClient(lm.clientToQueuedLockIDs, clientID, lockID)
-	markLockIDForClient(lm.clientToHeldLockIDs, clientID, lockID)
+	lm.markHeldLockID(clientID, lockID)
 	return nil
 }
 

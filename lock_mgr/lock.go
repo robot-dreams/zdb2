@@ -39,6 +39,17 @@ type lock struct {
 	queue []*request
 }
 
+func (l *lock) removeFromQueue(clientID string) {
+	j := 0
+	for i := 0; i < len(l.queue); i++ {
+		if l.queue[i].clientID != clientID {
+			l.queue[j] = l.queue[i]
+			j++
+		}
+	}
+	l.queue = l.queue[:j]
+}
+
 // Precondition:
 //     r.clientID holds the lock in shared mode
 func (l *lock) upgrade(r *request) error {
@@ -46,6 +57,7 @@ func (l *lock) upgrade(r *request) error {
 	for l.queue[0] != r || len(l.holders) > 1 {
 		r.cond.Wait()
 		if r.deadlockDetected {
+			l.removeFromQueue(r.clientID)
 			return Deadlock
 		}
 	}
@@ -75,6 +87,7 @@ func (l *lock) acquire(r *request) error {
 	for l.queue[0] != r || !l.canAcquire(r.exclusive) {
 		r.cond.Wait()
 		if r.deadlockDetected {
+			l.removeFromQueue(r.clientID)
 			return Deadlock
 		}
 	}

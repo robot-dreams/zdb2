@@ -4,8 +4,6 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
-
-	. "github.com/dropbox/godropbox/gocheck2"
 )
 
 type LockManagerSuite struct{}
@@ -93,22 +91,32 @@ func (s *LockManagerSuite) TestLockManager(c *C) {
 }
 
 func (s *LockManagerSuite) TestDeadlockDetector(c *C) {
+	errChan := make(chan error, 3)
 	lm := NewLockManager()
 	lm.Acquire("c1", "l1", true)
 	lm.Acquire("c2", "l2", true)
 	lm.Acquire("c3", "l3", true)
 	go func() {
-		lm.Acquire("c1", "l2", true)
+		err := lm.Acquire("c1", "l2", true)
+		if err != nil {
+			errChan <- err
+		}
 	}()
 	go func() {
-		lm.Acquire("c2", "l3", true)
+		err := lm.Acquire("c2", "l3", true)
+		if err != nil {
+			errChan <- err
+		}
 	}()
 	go func() {
-		lm.Acquire("c3", "l1", true)
+		err := lm.Acquire("c3", "l1", true)
+		if err != nil {
+			errChan <- err
+		}
 	}()
 	select {
-	case clientID := <-lm.clientKillChan:
-		c.Assert(clientID == "c1" || clientID == "c2" || clientID == "c3", IsTrue)
+	case <-errChan:
+		// Deadlock successfully detected.
 	case <-time.After(testDeadlockDetectionTimeout):
 		c.Errorf(
 			"Deadlock between c1, c2, c3 should have been detected after %v",
